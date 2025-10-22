@@ -1,0 +1,5 @@
+strategy,detection_window_days,triggers_total,success_triggers,wasted_triggers,expired_triggers,baseline_only_triggers,detections_completed,detections_with_additional,detections_baseline_only,success_ratio,wasted_ratio,expired_ratio,additional_builds_total,builds_success,builds_wasted,builds_success_ratio,builds_wasted_ratio,projects,projects_with_success,projects_with_waste
+strategy1_median,0,5177,18,5159,0,274,19,18,1,0.0034769171334749853,0.996523082866525,0.0,146791.0,421.0,146370.0,0.0028680232439318486,0.9971319767560681,19,18,19
+strategy2_random,0,5687,19,5668,0,0,19,19,0,0.003340953050817654,0.9966590469491824,0.0,171406.0,455.0,170951.0,0.0026545161779634317,0.9973454838220366,19,19,19
+strategy3_line_proportional,0,1980,12,1968,0,1077,19,12,7,0.006060606060606061,0.9939393939393939,0.0,146375.0,284.5,146090.5,0.0019436379163108454,0.9980563620836892,19,12,19
+strategy4_regression,0,4646,14,4632,0,1094,19,14,5,0.003013344812742144,0.9969866551872578,0.0,20567.0,35.0,20532.0,0.001701755238975057,0.9982982447610249,19,14,19

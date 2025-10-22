@@ -1,0 +1,310 @@
+{
+  "model": {
+    "version": "linear_regression_v1",
+    "intercept": 0.6878342308588521,
+    "coefficients": {
+      "daily_commit_count": 3.329331710495709e-13,
+      "files_changed": 0.003785453331424382,
+      "lines_added": 1.316783009739935e-05,
+      "lines_deleted": 2.2632151732226296e-06,
+      "builds_per_day": 0.6878342308588439,
+      "label_flag": 0.6878342308588439
+    },
+    "feature_order": [
+      "daily_commit_count",
+      "files_changed",
+      "lines_added",
+      "lines_deleted",
+      "builds_per_day",
+      "label_flag"
+    ],
+    "feature_signature": "a1ab1e4ba34edcf22d9c9ff22eb7ff3a299991cd07440e4a179606c072af61f6"
+  },
+  "settings": {
+    "random_state": null,
+    "use_hyperparam_optimization": false,
+    "walkforward_splits": 10,
+    "use_recent_training": false
+  },
+  "metrics": {
+    "evaluation_mode": "leave_one_project_out",
+    "lopo_overall": {
+      "mae": 5.1975513186179585,
+      "rmse": 65.31380882164524,
+      "mape": 0.8747651588248733,
+      "count": 5745.0
+    },
+    "lopo_project_metrics": {
+      "arrow": {
+        "mae": 2.4776472958596094,
+        "rmse": 3.508043969312518,
+        "mape": 0.9001485163367884,
+        "count": 204.0
+      },
+      "c-blosc2": {
+        "mae": 9.828993844733787,
+        "rmse": 70.19595876419191,
+        "mape": 0.9488618611566315,
+        "count": 111.0
+      },
+      "clamav": {
+        "mae": 2.2420678268555116,
+        "rmse": 2.3040947305557964,
+        "mape": NaN,
+        "count": 122.0
+      },
+      "curl": {
+        "mae": 2.600580955519026,
+        "rmse": 2.8250022200755343,
+        "mape": 0.563725434313023,
+        "count": 969.0
+      },
+      "file": {
+        "mae": 10.475064220905654,
+        "rmse": 77.50683012913358,
+        "mape": 0.9456261230647869,
+        "count": 166.0
+      },
+      "fluent-bit": {
+        "mae": 8.49863280676687,
+        "rmse": 99.11932075390078,
+        "mape": 1.000720451425352,
+        "count": 307.0
+      },
+      "harfbuzz": {
+        "mae": 16.287876815634657,
+        "rmse": 142.55057607230333,
+        "mape": 0.5379703581117999,
+        "count": 276.0
+      },
+      "icu": {
+        "mae": 2.3606383234424495,
+        "rmse": 2.4723749883211528,
+        "mape": 1.240997111999409,
+        "count": 404.0
+      },
+      "leptonica": {
+        "mae": 12.333350105587192,
+        "rmse": 60.93486801523409,
+        "mape": 0.8599555795158109,
+        "count": 76.0
+      },
+      "libarchive": {
+        "mae": 12.798536226713093,
+        "rmse": 93.41097276024591,
+        "mape": 0.8730823065371602,
+        "count": 170.0
+      },
+      "libavc": {
+        "mae": 21.14239227640845,
+        "rmse": 223.5431766939086,
+        "mape": 0.982344165107001,
+        "count": 250.0
+      },
+      "libjxl": {
+        "mae": 3.3109996061886475,
+        "rmse": 10.238648175762192,
+        "mape": 1.037723521758999,
+        "count": 141.0
+      },
+      "libvips": {
+        "mae": 2.4871888279411074,
+        "rmse": 4.5834684173958715,
+        "mape": 0.6875809836064061,
+        "count": 458.0
+      },
+      "mruby": {
+        "mae": 2.6243639198870774,
+        "rmse": 5.396329619371874,
+        "mape": 0.6345817411035644,
+        "count": 512.0
+      },
+      "net-snmp": {
+        "mae": 2.2658047261810035,
+        "rmse": 2.2801890330695347,
+        "mape": 0.5535996797858668,
+        "count": 295.0
+      },
+      "open62541": {
+        "mae": 2.332582349834706,
+        "rmse": 2.3450396568320424,
+        "mape": NaN,
+        "count": 199.0
+      },
+      "openthread": {
+        "mae": 2.5732767811450086,
+        "rmse": 4.3130107765440995,
+        "mape": 0.5707064014685527,
+        "count": 437.0
+      },
+      "serenity": {
+        "mae": 3.9163401401256515,
+        "rmse": 4.468486356365341,
+        "mape": 1.2672808725470996,
+        "count": 209.0
+      },
+      "wolfssl": {
+        "mae": 2.8448997918552568,
+        "rmse": 5.376476483614844,
+        "mape": 0.5855926229117114,
+        "count": 439.0
+      }
+    },
+    "lopo_heldout_projects": [
+      "arrow",
+      "c-blosc2",
+      "clamav",
+      "curl",
+      "file",
+      "fluent-bit",
+      "harfbuzz",
+      "icu",
+      "leptonica",
+      "libarchive",
+      "libavc",
+      "libjxl",
+      "libvips",
+      "mruby",
+      "net-snmp",
+      "open62541",
+      "openthread",
+      "serenity",
+      "wolfssl"
+    ],
+    "fold_metrics": {
+      "fold-1": {
+        "mae": 5.2068481431068525,
+        "rmse": 45.256542646532225,
+        "mape": 0.9332392982278387,
+        "count": 740.0
+      },
+      "fold-2": {
+        "mae": 3.455783995336037,
+        "rmse": 25.493957629065715,
+        "mape": 1.0326677067527974,
+        "count": 865.0
+      },
+      "fold-3": {
+        "mae": 4.6925807384973055,
+        "rmse": 60.183036080290734,
+        "mape": 0.6871394848317731,
+        "count": 827.0
+      },
+      "fold-4": {
+        "mae": 9.018460153828723,
+        "rmse": 93.24357716498771,
+        "mape": 0.8673933749388102,
+        "count": 700.0
+      },
+      "fold-5": {
+        "mae": 3.981556743243694,
+        "rmse": 23.841956955591087,
+        "mape": 0.9120688952038009,
+        "count": 527.0
+      },
+      "fold-6": {
+        "mae": 4.734169707654375,
+        "rmse": 40.330433791590266,
+        "mape": 0.8953159404883284,
+        "count": 619.0
+      },
+      "fold-7": {
+        "mae": 9.653299410356055,
+        "rmse": 148.23891984133493,
+        "mape": 0.8355152718541143,
+        "count": 545.0
+      },
+      "fold-8": {
+        "mae": 2.7761109417385996,
+        "rmse": 9.913328032622536,
+        "mape": 1.1671725027130848,
+        "count": 485.0
+      },
+      "fold-9": {
+        "mae": 2.717921572227211,
+        "rmse": 6.411277047116429,
+        "mape": 0.8574282518500782,
+        "count": 437.0
+      }
+    },
+    "overall_performance": {
+      "mae": 5.1975513186179585,
+      "rmse": 65.31380882164524,
+      "mape": 0.8747651588248733,
+      "count": 5745.0
+    },
+    "model_version": "linear_regression_v1",
+    "feature_signature": "a1ab1e4ba34edcf22d9c9ff22eb7ff3a299991cd07440e4a179606c072af61f6",
+    "random_state_used": null,
+    "use_hpo": false,
+    "walkforward_splits": 10,
+    "use_recent_training": false,
+    "train_mae": 4.422844391843475,
+    "train_projects": 19
+  },
+  "folds": {
+    "fold-1": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2021-05-11T00:00:00+00:00",
+      "validation_window_start": "2019-03-18T00:00:00+00:00",
+      "validation_window_end": "2021-10-15T00:00:00+00:00",
+      "rows": 740
+    },
+    "fold-2": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2022-02-07T00:00:00+00:00",
+      "validation_window_start": "2019-11-09T00:00:00+00:00",
+      "validation_window_end": "2022-06-20T00:00:00+00:00",
+      "rows": 865
+    },
+    "fold-3": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2022-06-20T00:00:00+00:00",
+      "validation_window_start": "2020-02-08T00:00:00+00:00",
+      "validation_window_end": "2022-10-12T00:00:00+00:00",
+      "rows": 827
+    },
+    "fold-4": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2022-10-12T00:00:00+00:00",
+      "validation_window_start": "2020-09-10T00:00:00+00:00",
+      "validation_window_end": "2023-05-02T00:00:00+00:00",
+      "rows": 700
+    },
+    "fold-5": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2023-05-02T00:00:00+00:00",
+      "validation_window_start": "2020-12-31T00:00:00+00:00",
+      "validation_window_end": "2023-09-29T00:00:00+00:00",
+      "rows": 527
+    },
+    "fold-6": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2023-09-29T00:00:00+00:00",
+      "validation_window_start": "2021-06-27T00:00:00+00:00",
+      "validation_window_end": "2024-01-30T00:00:00+00:00",
+      "rows": 619
+    },
+    "fold-7": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2024-01-30T00:00:00+00:00",
+      "validation_window_start": "2022-06-05T00:00:00+00:00",
+      "validation_window_end": "2024-05-24T00:00:00+00:00",
+      "rows": 545
+    },
+    "fold-8": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2024-05-24T00:00:00+00:00",
+      "validation_window_start": "2023-03-22T00:00:00+00:00",
+      "validation_window_end": "2024-11-25T00:00:00+00:00",
+      "rows": 485
+    },
+    "fold-9": {
+      "train_window_start": "2018-10-12T00:00:00+00:00",
+      "train_window_end": "2024-11-25T00:00:00+00:00",
+      "validation_window_start": "2023-10-18T00:00:00+00:00",
+      "validation_window_end": "2025-06-01T00:00:00+00:00",
+      "rows": 437
+    }
+  }
+}

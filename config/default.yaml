@@ -1,0 +1,18 @@
+# Default configuration for paths and parameters
+
+paths:
+  data_dir: ./vuljit/data
+  outputs_dir: ./vuljit/outputs
+  metrics_dir: ./vuljit/data/metrics_output
+  intermediate_dir: ./vuljit/data/intermediate
+  cloned_repos_dir: ./vuljit/data/intermediate/cloned_repos
+  srcmap_dir: ./vuljit/data/srcmap_json
+  coverage_dir: ./vuljit/data/coverage_gz
+
+downloads:
+  csv: ./vuljit/data/oss_fuzz_vulns.csv
+  start_date: 20181012
+  end_date: 20250802
+  workers: 8
+  coverage_files:
+    - summary.json

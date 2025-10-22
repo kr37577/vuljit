@@ -1,0 +1,102 @@
+# カバレッジデータ処理パイプライン
+
+このプロジェクトは、OSS-Fuzzなどからダウンロードしたカバレッジデータ（ZIP形式）を処理し、分析用のCSVファイルを生成するための一連のスクリプトとツール群です。
+
+パイプラインは主に以下の3つのステップで構成されています。
+
+1.  **カバレッジデータの抽出と集計**: 大量のZIPファイルからカバレッジJSONを抽出し、プロジェクトごと、ファザーごと、日付ごとのカバレッジデータを集計したCSVファイルを生成します。
+2.  **最適ファザーの選定**: プロジェクトごとに、最もカバレッジの高いファザーを特定し、そのファザーのデータのみを抽出します。
+3.  **時系列データの補完**: 抽出されたデータの日付の欠損を補完し、分析に適した連続した時系列データを生成します。
+
+---
+
+## 使い方
+
+### 必要なもの
+
+*   **Python 3**: `pandas`, `tqdm` ライブラリが必要です。
+    ```bash
+    pip install pandas tqdm
+    ```
+*   **カバレッジデータ**: ZIPファイル形式のカバレッジデータ。
+*   **設定ファイル**:
+    *   `list_of_zip_files_fullpath.txt`: 処理対象のZIPファイルへの相対パスを1行ずつ記述したリスト。
+    *   `projects.txt`: 処理対象のプロジェクト名を1行ずつ記述したリスト。
+
+### ステップ1: カバレッジデータの抽出と集計
+
+このステップでは、`list_of_zip_files_fullpath.txt` に記載されたZIPファイルを順に処理します。
+
+#### 実行方法
+
+`do.sh` は `all_list_do.sh` を呼び出します。`all_list_do.sh` を直接実行することも可能です。
+
+```bash
+# do.sh を実行 (内部で all_list_do.sh を呼び出す)
+# SBATCH を使用したジョブ実行を想定
+sbatch do.sh
+
+# または、直接 all_list_do.sh を実行
+# 使用法: bash all_list_do.sh <処理するファイル数> <ZIPファイルが格納されているディレクトリパス>
+bash all_list_do.sh 300 ./ossfuzz_downloaded_fuzzer_stats_zip
+```
+
+#### 処理内容
+
+1.  **`all_list_do.sh`**: `list_of_zip_files_fullpath.txt` から指定された数のZIPファイルパスを読み込み、`unzip_ungz_extract_csv.sh` に渡します。処理が成功したZIPファイルは物理的に削除され、リストからも削除されます。
+2.  **`unzip_ungz_extract_csv.sh`**:
+    *   ZIPファイルを解凍します。
+    *   内部の `.gz` ファイルを解凍します。
+    *   `test_process_coverage.py` を実行します。
+3.  **`test_process_coverage.py`**:
+    *   解凍されたディレクトリ内のカバレッジJSONファイルを処理します。
+    *   以下の2種類のCSVファイルを `output/<プロジェクト名>/` ディレクトリに出力します。
+        *   `<プロジェクト名>_total_per_fuzzer_and_date.csv` (ファザーごとの集計データ)
+        *   `<プロジェクト名>_per_fuzzer_and_date.csv` (ファイルごとの詳細データ)
+
+---
+
+### ステップ2: 最適ファザーの選定
+
+ステップ1で生成されたCSVを元に、各プロジェクトで最も性能の良いファザー（最も古い日付でカバレッジが最も高いファザー）を特定し、そのファザーのデータだけを抽出します。
+
+#### 実行方法
+
+`do2.sh` は `projects.txt` を読み込み、プロジェクトごとに `extract_coverage_and_metrics.sh` を実行します。
+
+```bash
+# do2.sh を実行
+# SBATCH を使用したジョブ実行を想定
+sbatch do2.sh
+```
+
+#### 処理内容
+
+1.  **`extract_coverage_and_metrics.sh`**: `projects.txt` からプロジェクト名を読み込み、`decide_fuzzer.py` を実行します。
+2.  **`decide_fuzzer.py`**:
+    *   `_total_...csv` を読み込み、最適なファザーを決定します。
+    *   `_per_fuzzer_...csv` から、決定したファザーのデータのみをフィルタリングします。
+    *   結果を `output/<プロジェクト名>/<プロジェクト名>_best_fuzzer_detailed_coverage.csv` として保存します。
+
+---
+
+### ステップ3: 時系列データの補完 (オプション)
+
+ステップ2で生成されたCSVファイルの日付の欠損を補完し、連続した時系列データを生成します。
+
+#### 実行方法
+
+`forward_fill.py` を直接実行します。
+
+```bash
+# 使用法: python forward_fill.py <入力CSVパス> <出力CSVパス>
+python forward_fill.py \
+  output/my_project/my_project_best_fuzzer_detailed_coverage.csv \
+  output/my_project/my_project_filled_coverage.csv
+```
+
+#### 処理内容
+
+*   **`forward_fill.py`**:
+    *   入力CSVを読み込み、ファイルパスごとにグループ化します。
+    *   各ファイルについて、データが存在する最初の日から全体
