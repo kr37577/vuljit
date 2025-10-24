@@ -1,8 +1,0 @@
-model,Metric,Mean_Value,Project_Count
-Random,Accuracy,0.956026,19
-Random,AUC_ROC,0.500502,19
-Random,PR_AUC,0.044025,19
-Random,Recall,0.029286,19
-Random,F1-Score,0.022280,19
-Random,Precision,0.015240,19
-Random,MCC,0.000386,19

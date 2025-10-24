@@ -1,5 +1,0 @@
-strategy,rows,unique_projects,unique_days,scheduled_additional_builds,median_detection_days_mean,sampled_offset_mean,normalized_line_change_mean,baseline_records,baseline_detection_days_mean
-strategy1_median,4981,19,1920,80055.0,16.00903433045573,,,2716,80.17341678939617
-strategy2_random,5088,19,1935,117639.0,,22.62616381196653,,2716,80.17341678939617
-strategy3_line_proportional,3106,19,1605,79738.0,,,18.248599949304438,2716,80.17341678939617
-strategy4_regression,2763,19,1580,40834.0,,,,2716,80.17341678939617

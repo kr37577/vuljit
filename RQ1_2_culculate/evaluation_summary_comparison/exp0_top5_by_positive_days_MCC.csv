@@ -1,6 +1,0 @@
-Metric,Value,project,model,positive_days
-MCC,-0.011865348,harfbuzz,Random,50
-MCC,0.0022893999,mruby,Random,36
-MCC,-0.0024042015,serenity,Random,26
-MCC,0.007655575,c-blosc2,Random,23
-MCC,-0.0003546446,openthread,Random,22

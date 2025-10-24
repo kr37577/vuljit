@@ -1,5 +1,0 @@
-strategy,projects,total_scheduled_builds,median_scheduled_builds,mean_scheduled_builds,median_estimated_detection_days,mean_estimated_detection_days,median_estimated_detection_builds,mean_estimated_detection_builds,total_estimated_builds_saved
-strategy1_median,19,80055.0,1420.0,4213.421052631579,0.0,0.0,0.0,0.0,493.0
-strategy2_random,19,117639.0,3242.0,6191.526315789473,0.0,0.0,0.0,0.0,493.0
-strategy3_line_proportional,19,79738.0,1345.0,4196.736842105263,0.0,0.0,0.0,0.0,493.0
-strategy4_regression,19,40834.0,987.0,2149.157894736842,0.0,0.0,0.0,0.0,493.0
