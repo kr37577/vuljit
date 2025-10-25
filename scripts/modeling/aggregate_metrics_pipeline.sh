@@ -20,7 +20,7 @@ export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-PYTHON_SCRIPT_PATH_1="${script_dir}/merge_coverage_metrics_test12.py"
+PYTHON_SCRIPT_PATH_1="${script_dir}/aggregate_metrics_pipeline.py"
 
 # 後で消す
 VULJIT_BASE_DATA_DIR='/work/riku-ka/vuljit/datasets/derived_artifacts'
