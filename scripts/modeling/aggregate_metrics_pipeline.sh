@@ -19,7 +19,9 @@ export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
-script_dir="$(cd "$(dirname "$0")" && pwd)"
+# clusterで動かすときは絶対パス指定にする
+# script_dir="$(cd "$(dirname "$0")" && pwd)"
+script_dir="/work/riku-ka/vuljit/scripts/modeling"
 PYTHON_SCRIPT_PATH_1="${script_dir}/aggregate_metrics_pipeline.py"
 
 # 後で消す
@@ -63,13 +65,13 @@ ${PYTHON_EXEC} "${PYTHON_SCRIPT_PATH_1}" "${PROJECT_ID}" "${DIRECTORY_NAME}" \
   --metrics "${METRICS_BASE_PATH}" \
   --coverage "${COVERAGE_BASE_PROJECT_PATH}" \
   --patch-coverage "${PATCH_COVERAGE_BASE_PATH}" \
-  --out "${VULJIT_BASE_DATA_DIR:-${script_dir}/../../datasets/derived_artifacts}"
+  --out "${VULJIT_BASE_DATA_DIR:-${script_dir}/../../datasets/derived_artifacts/aggregate_metrics}"
 # --out "${OUTPUT_BASE_PATH}"
 
 # ${PYTHON_EXEC} "${PYTHON_SCRIPT_PATH_1}" "${PROJECT_ID}" "${DIRECTORY_NAME}" \
 #   --metrics "${VULJIT_METRICS_DIR:-${script_dir}/../../datasets/metric_inputs}" \
 #   --coverage "${VULJIT_COVERAGE_AGG_DIR:-${script_dir}/../../datasets/derived_artifacts/metrics/coverage_aggregate}" \
 #   --patch-coverage "${VULJIT_PATCH_COV_DIR:-${script_dir}/../../datasets/derived_artifacts/metrics/patch_coverage}" \
-#   --out "${VULJIT_BASE_DATA_DIR:-${script_dir}/../../datasets/derived_artifacts}"
+#   --out "${VULJIT_BASE_DATA_DIR:-${script_dir}/../../datasets/derived_artifacts/aggregate_metrics}"
 
 echo "====== Finished Slurm Task ${SLURM_ARRAY_TASK_ID} ======"

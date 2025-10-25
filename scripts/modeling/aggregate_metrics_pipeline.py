@@ -623,6 +623,31 @@ def process_project_coverage(project_id,
     if 'commit_hash' in valid_aggregation_rules:
         daily_aggregated_df.rename(columns={'commit_hash': 'daily_commit_count'}, inplace=True)
 
+    # 4.5. 日次特徴量を前日値にラグさせる（カバレッジ以外）
+    lag_feature_candidates = set()
+    lag_feature_candidates.update(KAMEI_FEATURES)
+    lag_feature_candidates.update(VCCFINDER_FEATURES)
+    lag_feature_candidates.update(bool_feats)
+    lag_feature_candidates.update(count_feats)
+    lag_feature_candidates.update(other_feats.keys())
+    lag_feature_candidates.update({'daily_commit_count', 'vcc_commit_count'})
+
+    lag_feature_columns = [col for col in lag_feature_candidates if col in daily_aggregated_df.columns]
+
+    if lag_feature_columns:
+        daily_aggregated_df.sort_values('merge_date', inplace=True)
+        daily_aggregated_df[lag_feature_columns] = daily_aggregated_df[lag_feature_columns].shift(1)
+        before_drop = len(daily_aggregated_df)
+        daily_aggregated_df.dropna(subset=lag_feature_columns, inplace=False)
+        dropped = before_drop - len(daily_aggregated_df)
+        if dropped > 0:
+            print(f"  -> 前日データが無いため {dropped} 行を除外しました。")
+        daily_aggregated_df.reset_index(drop=True, inplace=True)
+
+    if daily_aggregated_df.empty:
+        print(f"ℹ️  プロジェクト '{project_id}' はラグ適用後に有効な日が残らないためスキップします。")
+        return
+
     # 5. 保存前にサンプル数しきい値でフィルタ
     if 'is_vcc' in daily_aggregated_df.columns:
         try:
