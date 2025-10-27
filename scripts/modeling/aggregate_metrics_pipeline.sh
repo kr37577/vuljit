@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=merge_coverage_metrics
-#SBATCH --output=logs/merge_coverage_metrics_%A_%a.out
-#SBATCH --error=errors/merge_coverage_metrics_%A_%a.err
+#SBATCH --job-name=aggregate_metrics
+#SBATCH --output=logs/aggregate_metrics_%A_%a.out
+#SBATCH --error=errors/aggregate_metrics_%A_%a.err
 #SBATCH --array=1-279
 #SBATCH --time=04:00:00
 #SBATCH --partition=cluster_short

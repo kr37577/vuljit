@@ -649,6 +649,7 @@ def process_project_coverage(project_id,
     lag_feature_candidates.update(bool_feats)
     lag_feature_candidates.update(count_feats)
     lag_feature_candidates.update(other_feats.keys())
+    # NOTE: daily_commit_count, vcc_commit_count, is_vcc もラグ適用
     lag_feature_candidates.update({'daily_commit_count', 'vcc_commit_count', 'is_vcc'})
 
     lag_feature_columns = [col for col in lag_feature_candidates if col in daily_aggregated_df.columns]
