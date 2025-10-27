@@ -22,8 +22,8 @@ PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
 
 
 PYTHON_SCRIPT_PATH_1="text_code_metrics/repo_commit_processor_test.py"
-PYTHON_SCRIPT_PATH_2="text_code_metrics/text_metrics_calculator.py"
-PYTHON_SCRIPT_PATH_3="text_code_metrics/text_raw_convert_metrics.py"
+# PYTHON_SCRIPT_PATH_2="text_code_metrics/text_metrics_calculator.py"
+# PYTHON_SCRIPT_PATH_3="text_code_metrics/text_raw_convert_metrics.py"
 PYTHON_SCRIPT_VULN_LABELER="text_code_metrics/label.py" 
 
 count=1

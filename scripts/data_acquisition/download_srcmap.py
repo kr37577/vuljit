@@ -124,17 +124,48 @@ def download_reports(package_names: Set[str], start_date_str: str, end_date_str:
 
 
 if __name__ == "__main__":
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(this_dir, "..", ".."))
+    default_download_dir = os.environ.get(
+        "VULJIT_SRCDOWN_DIR",
+        os.path.join(repo_root, "datasets", "raw", "srcmap_json"),
+    )
+    default_csv_path = os.environ.get(
+        "VULJIT_VUL_CSV",
+        os.path.join(
+            repo_root,
+            "datasets",
+            "derived_artifacts",
+            "vulnerability_reports",
+            "oss_fuzz_vulnerabilities.csv",
+        ),
+    )
+
+    default_start_date = os.environ.get("VULJIT_START_DATE", "20160101")
+    default_end_date = os.environ.get("VULJIT_END_DATE", "20250802")
+
     parser = argparse.ArgumentParser(
         description="Download [date].json files for multiple projects over a date range from GCS oss-fuzz-coverage bucket.")
     parser.add_argument(
-        "csv_file", help="Path to CSV file containing project names in the first column.")
-    parser.add_argument("start_date", help="Start date string (YYYYMMDD)")
-    parser.add_argument("end_date", help="End date string (YYYYMMDD)")
+        "csv_file",
+        nargs="?",
+        default=default_csv_path,
+        help=f"Path to CSV file containing project names in the specified column (default: {default_csv_path})")
+    parser.add_argument(
+        "start_date",
+        nargs="?",
+        default=default_start_date,
+        help=f"Start date string (YYYYMMDD) (default: {default_start_date})")
+    parser.add_argument(
+        "end_date",
+        nargs="?",
+        default=default_end_date,
+        help=f"End date string (YYYYMMDD) (default: {default_end_date})")
     # Removed --filenames argument
     # parser.add_argument("--filenames", nargs='+', required=True,
     #                     help="List of filenames to download from each report subdirectory (e.g., index.html fuzz_report.html).")
-    parser.add_argument("-d", "--dir", default="downloaded_json",  # Changed default dir name
-                        help="Root directory to save the downloaded files (default: downloaded_json)")
+    parser.add_argument("-d", "--dir", default=default_download_dir,
+                        help=f"Root directory to save the downloaded files (default: {default_download_dir})")
     parser.add_argument("-w", "--workers", type=int, default=os.cpu_count() or 4,
                         help="Number of parallel download workers (default: number of CPU cores or 4)")
     parser.add_argument("--csv-column", type=int, default=2,  # Changed default from 0 to 2

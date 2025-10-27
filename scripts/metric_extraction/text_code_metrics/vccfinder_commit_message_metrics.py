@@ -1,22 +1,25 @@
+import argparse
+import os
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
-import os
-import argparse
 
-def calculate_tfidf_for_commits(project_name):
+def calculate_tfidf_for_commits(project_name: str, metrics_base_dir: str) -> None:
     """
     コミットメトリクスCSVを読み込み、コミットメッセージのTF-IDFを計算して
     新しい列として追加し、別のファイルに保存します。
 
     Args:
         project_name (str): CSVファイルが格納されているプロジェクト名。
+        metrics_base_dir (str): メトリクスファイルを格納するベースディレクトリ。
     """
 
     # --- 1. ファイルパスの準備 ---
-    input_filepath = f'/work/riku-ka/metrics_culculator/output_0802/{project_name}/{project_name}_commit_metrics_with_vulnerability_label.csv'
-    output_filepath = f'/work/riku-ka/metrics_culculator/output_0802/{project_name}/{project_name}_commit_metrics_with_tfidf.csv'
-    
+    project_dir = Path(metrics_base_dir) / project_name
+    input_filepath = project_dir / f"{project_name}_commit_metrics_with_vulnerability_label.csv"
+    output_filepath = project_dir / f"{project_name}_commit_metrics_with_tfidf.csv"
 
     # --- 2. CSVファイルの読み込み ---
     try:
@@ -67,6 +70,7 @@ def calculate_tfidf_for_commits(project_name):
     final_df = pd.concat([df, tfidf_df], axis=1)
 
     # --- 6. 新しいCSVファイルとして保存 ---
+    project_dir.mkdir(parents=True, exist_ok=True)
     final_df.to_csv(output_filepath, index=False)
     print(f"TF-IDFメトリクスを追加した新しいファイルを保存しました: {output_filepath}")
     
@@ -79,11 +83,20 @@ def calculate_tfidf_for_commits(project_name):
 
 if __name__ == '__main__':
     # コマンドライン引数の解析
+    this_dir = Path(__file__).resolve().parent
+    repo_root = this_dir.parents[3]
+    default_metrics_dir = os.environ.get(
+        "VULJIT_METRICS_DIR",
+        os.path.join(repo_root, "datasets", "metric_inputs"),
+    )
+
     parser = argparse.ArgumentParser(description='Calculate TF-IDF for commit messages.')
-    parser.add_argument('-p','--project_name', type=str, required=True, help='Name of the project to process.')
+    parser.add_argument('-p', '--project_name', type=str, required=True, help='Name of the project to process.')
+    parser.add_argument('-m', '--metrics-dir', default=default_metrics_dir,
+                        help=f'Base directory where metrics files are stored (default: {default_metrics_dir})')
     args = parser.parse_args()
 
     if args.project_name == 'your_project_name_here':
         print("エラー: `project_name`変数を実際のプロジェクト名に設定してください。")
     else:
-        calculate_tfidf_for_commits(args.project_name)
+        calculate_tfidf_for_commits(args.project_name, args.metrics_dir)
