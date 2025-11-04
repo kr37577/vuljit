@@ -1,0 +1,22 @@
+[info] submitting 21 jobs via sbatch from: /work/riku-ka/vuljit/datasets/derived_artifacts/aggregate
+submitted: arrow -> job 3950421
+submitted: c-blosc2 -> job 3950422
+submitted: clamav -> job 3950423
+submitted: curl -> job 3950424
+submitted: file -> job 3950425
+submitted: fluent-bit -> job 3950426
+submitted: harfbuzz -> job 3950427
+submitted: icu -> job 3950428
+submitted: leptonica -> job 3950429
+submitted: libarchive -> job 3950430
+submitted: libavc -> job 3950431
+submitted: libjxl -> job 3950432
+submitted: libvips -> job 3950433
+submitted: libxml2 -> job 3950434
+submitted: mruby -> job 3950435
+submitted: open62541 -> job 3950436
+submitted: openthread -> job 3950437
+submitted: poppler -> job 3950438
+submitted: serenity -> job 3950439
+submitted: wireshark -> job 3950440
+submitted: wolfssl -> job 3950441

@@ -3,12 +3,12 @@
 #SBATCH --job-name=aggregate_metrics
 #SBATCH --output=logs/aggregate_metrics_%A_%a.out
 #SBATCH --error=errors/aggregate_metrics_%A_%a.err
-#SBATCH --array=1-279
+#SBATCH --array=1-280
 #SBATCH --time=04:00:00
 #SBATCH --partition=cluster_short
 #SBATCH --ntasks=1
-#SBATCH --mem=120G
-#SBATCH --cpus-per-task=26
+#SBATCH --mem=80G
+#SBATCH --cpus-per-task=13
 #SBATCH --mail-user=kato.riku.ks5@naist.ac.jp
 #SBATCH --mail-type=END,FAIL 
 
@@ -59,9 +59,9 @@ default_coverage_dir="${repo_root}/datasets/coverage_metrics"
 # output_base_path = '/work/riku-ka/daily_commit_summary_past_vul_0802_now' 
 
 ## いったん絶対パスでメトリクスやカバレッジを指定
-METRICS_BASE_PATH="/work/riku-ka/metrics_culculator/output_0802"
-COVERAGE_BASE_PROJECT_PATH="${VULJIT_COVERAGE_METRICS_DIR:-${default_coverage_dir}}"
-PATCH_COVERAGE_BASE_PATH="/work/riku-ka/patch_coverage_culculater/patch_coverage_results_0802_now"
+METRICS_BASE_PATH="/work/riku-ka/vuljit/datasets/derived_artifacts/commit_metrics"
+COVERAGE_BASE_PROJECT_PATH="/work/riku-ka/vuljit/datasets/derived_artifacts/coverage_metrics"
+PATCH_COVERAGE_BASE_PATH="/work/riku-ka/vuljit/datasets/derived_artifacts/patch_coverage_metrics"
 # OUTPUT_BASE_PATH="/work/riku-ka/daily_commit_summary_past_vul_0802_now"
 
 mkdir -p "${COVERAGE_BASE_PROJECT_PATH}"

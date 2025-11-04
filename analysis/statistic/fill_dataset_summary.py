@@ -63,6 +63,8 @@ def _parse_iso_date(value: str) -> Optional[date]:
 def _scan_coverage(
     coverage_root: Path,
     packages: Set[str],
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
 ) -> Tuple[Dict[str, date], int, int, Optional[date], Optional[date]]:
     """Inspect coverage directories and collect per-project metadata."""
     first_dates: Dict[str, date] = {}
@@ -100,6 +102,10 @@ def _scan_coverage(
                 continue
 
             day = datetime.strptime(entry.name, "%Y%m%d").date()
+            if start_date and day < start_date:
+                continue
+            if end_date and day > end_date:
+                continue
             total_reports += 1
             if first_for_project is None or day < first_for_project:
                 first_for_project = day
@@ -147,12 +153,131 @@ def _load_cloned_projects(cloned_root: Path) -> Set[str]:
     return projects
 
 
+def _parse_prediction_date(raw: str) -> Optional[date]:
+    """Return a date extracted from the merge_date column."""
+    if raw is None:
+        return None
+    value = raw.strip()
+    if not value:
+        return None
+    # If timestamp is provided, only use the date portion.
+    if "T" in value:
+        value = value.split("T", 1)[0]
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(value).date()
+    except ValueError:
+        return None
+
+
+def _parse_is_vcc_flag(raw: str) -> int:
+    """Interpret various truthy values used in the prediction CSVs."""
+    if raw is None:
+        return 0
+    value = str(raw).strip().lower()
+    if not value:
+        return 0
+    if value in {"1", "true", "yes"}:
+        return 1
+    if value in {"0", "false", "no"}:
+        return 0
+    try:
+        return 1 if float(value) >= 1.0 else 0
+    except ValueError:
+        return 0
+
+
+def _parse_prediction_csv(csv_path: Path) -> Optional[Tuple[int, int]]:
+    """Return (total_days, days_with_vcc) for a prediction CSV."""
+    with csv_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if not reader.fieldnames or {"merge_date", "is_vcc"} - set(reader.fieldnames):
+            return None
+        day_map: Dict[date, int] = {}
+        for row in reader:
+            merge_date = _parse_prediction_date(row.get("merge_date", ""))
+            if merge_date is None:
+                continue
+            is_vcc = _parse_is_vcc_flag(row.get("is_vcc"))
+            day_map[merge_date] = is_vcc
+    if not day_map:
+        return None
+    total_days = len(day_map)
+    days_with_vcc = sum(day_map.values())
+    return total_days, days_with_vcc
+
+
+def _collect_prediction_day_stats(
+    prediction_root: Path,
+    pattern: str = "*_daily_aggregated_metrics_with_predictions.csv",
+) -> Dict[str, object]:
+    """Aggregate total/VCC days from modeling outputs."""
+    if not prediction_root.is_dir():
+        raise FileNotFoundError(f"Prediction root not found: {prediction_root}")
+
+    per_project: List[Dict[str, object]] = []
+    total_days = 0
+    days_with_vcc = 0
+
+    for project_dir in sorted(p for p in prediction_root.iterdir() if p.is_dir()):
+        project_total = 0
+        project_with_vcc = 0
+        for csv_file in sorted(project_dir.glob(pattern)):
+            parsed = _parse_prediction_csv(csv_file)
+            if not parsed:
+                continue
+            days, with_vcc = parsed
+            project_total += days
+            project_with_vcc += with_vcc
+
+        if project_total == 0:
+            continue
+
+        project_without = project_total - project_with_vcc
+        per_project.append(
+            {
+                "project": project_dir.name,
+                "total_days": project_total,
+                "days_with_vcc": project_with_vcc,
+                "days_without_vcc": project_without,
+            }
+        )
+        total_days += project_total
+        days_with_vcc += project_with_vcc
+
+    per_project.sort(key=lambda entry: entry["project"])
+    days_without_vcc = total_days - days_with_vcc
+    return {
+        "projects": len(per_project),
+        "total_days": total_days,
+        "days_with_vcc": days_with_vcc,
+        "days_without_vcc": days_without_vcc,
+        "per_project": per_project,
+    }
+
+
+def _cli_date(value: str) -> date:
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"Invalid date '{value}'. Expected format YYYY-MM-DD."
+        ) from exc
+
+
 def compute_statistics(
     vuln_csv: Path,
     metadata_csv: Path,
     cloned_root: Path,
     coverage_root: Path,
+    prediction_root: Path,
     min_reports_per_repo: int,
+    coverage_start_filter: Optional[date],
+    coverage_end_filter: Optional[date],
 ) -> Dict[str, object]:
     metadata = _load_metadata(metadata_csv)
     if not metadata:
@@ -214,7 +339,12 @@ def compute_statistics(
         coverage_projects,
         coverage_start,
         coverage_end,
-    ) = _scan_coverage(coverage_root, stage3_packages)
+    ) = _scan_coverage(
+        coverage_root,
+        stage3_packages,
+        start_date=coverage_start_filter,
+        end_date=coverage_end_filter,
+    )
 
     final_records = []
     for record in stage3_records:
@@ -232,6 +362,8 @@ def compute_statistics(
         (stage1_issue_count / total_issues * 100.0) if total_issues else 0.0
     )
 
+    prediction_stats = _collect_prediction_day_stats(prediction_root)
+
     return {
         "total_issues": total_issues,
         "c_cpp_issues": stage1_issue_count,
@@ -247,6 +379,11 @@ def compute_statistics(
         "coverage_start": coverage_start.isoformat() if coverage_start else None,
         "coverage_end": coverage_end.isoformat() if coverage_end else None,
         "final_issues": len(final_records),
+        "prediction_projects": prediction_stats["projects"],
+        "prediction_total_days": prediction_stats["total_days"],
+        "prediction_days_with_vcc": prediction_stats["days_with_vcc"],
+        "prediction_days_without_vcc": prediction_stats["days_without_vcc"],
+        "prediction_days_per_project": prediction_stats["per_project"],
     }
 
 
@@ -278,6 +415,11 @@ def build_paragraph(stats: Dict[str, object]) -> str:
         "are generated from {coverage_start} to {coverage_end}. These files contain "
         "aggregated coverage data, such as line, function, region, branch, and "
         "instruction coverage for the entire project for each day.\n"
+        "In addition, we analyzed prediction CSVs derived from the modeling pipeline, "
+        "covering {prediction_total_days} calendar days across {prediction_projects} "
+        "projects. Among those days, {prediction_days_with_vcc} include actual "
+        "vulnerability-inducing commits while the remaining {prediction_days_without_vcc} "
+        "do not contain such commits.\n"
         "It is worth mentioning that we excluded vulnerability reports created before "
         "the first coverage report for each project (i.e., removed issues created "
         "before their integration into OSS-Fuzz). This filtering yields "
@@ -297,6 +439,10 @@ def build_paragraph(stats: Dict[str, object]) -> str:
         coverage_start=stats["coverage_start"] or "N/A",
         coverage_end=stats["coverage_end"] or "N/A",
         final_issues=_format_int(int(stats["final_issues"])),
+        prediction_total_days=_format_int(int(stats["prediction_total_days"])),
+        prediction_projects=_format_int(int(stats["prediction_projects"])),
+        prediction_days_with_vcc=_format_int(int(stats["prediction_days_with_vcc"])),
+        prediction_days_without_vcc=_format_int(int(stats["prediction_days_without_vcc"])),
     )
 
 
@@ -319,6 +465,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     default_cloned_root = repo_root / "datasets" / "raw" / "cloned_c_cpp_projects"
     default_coverage_root = repo_root / "datasets" / "raw" / "coverage_report"
+    default_prediction_root = repo_root / "datasets" / "model_outputs" / "random_forest"
+    default_stats_output = (
+        repo_root / "datasets" / "statistics" / "dataset_summary_stats.json"
+    )
 
     parser = argparse.ArgumentParser(
         description="Fill the dataset summary paragraph with measured statistics."
@@ -327,6 +477,35 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--metadata-csv", type=Path, default=default_metadata_csv)
     parser.add_argument("--cloned-root", type=Path, default=default_cloned_root)
     parser.add_argument("--coverage-root", type=Path, default=default_coverage_root)
+    parser.add_argument(
+        "--prediction-root",
+        type=Path,
+        default=default_prediction_root,
+        help="Root directory that stores per-project prediction CSVs.",
+    )
+    parser.add_argument(
+        "--coverage-start-date",
+        type=_cli_date,
+        default="2018-08-22",
+        help="Ignore coverage reports earlier than this date (YYYY-MM-DD).",
+    )
+    parser.add_argument(
+        "--coverage-end-date",
+        type=_cli_date,
+        default="2025-06-01",
+        help="Ignore coverage reports later than this date (YYYY-MM-DD).",
+    )
+    parser.add_argument(
+        "--stats-output",
+        type=Path,
+        default=default_stats_output,
+        help="Destination JSON file for statistics (set to '-' to disable).",
+    )
+    parser.add_argument(
+        "--no-stats-file",
+        action="store_true",
+        help="Skip writing statistics JSON to disk.",
+    )
     parser.add_argument(
         "--min-issues-per-repo",
         type=int,
@@ -339,18 +518,33 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="If specified, suppress the JSON statistics on stderr.",
     )
     args = parser.parse_args(argv)
+    if (
+        args.coverage_start_date
+        and args.coverage_end_date
+        and args.coverage_start_date > args.coverage_end_date
+    ):
+        parser.error("coverage start date must not be later than coverage end date")
 
     stats = compute_statistics(
         vuln_csv=args.vuln_csv,
         metadata_csv=args.metadata_csv,
         cloned_root=args.cloned_root,
         coverage_root=args.coverage_root,
+        prediction_root=args.prediction_root,
         min_reports_per_repo=args.min_issues_per_repo,
+        coverage_start_filter=args.coverage_start_date,
+        coverage_end_filter=args.coverage_end_date,
     )
 
     if not args.no_stats:
         json.dump(stats, sys.stderr, indent=2, sort_keys=True)
         sys.stderr.write("\n")
+
+    if not args.no_stats_file and str(args.stats_output) != "-":
+        stats_path = args.stats_output
+        stats_path.parent.mkdir(parents=True, exist_ok=True)
+        with stats_path.open("w", encoding="utf-8") as handle:
+            json.dump(stats, handle, indent=2, sort_keys=True)
 
     paragraph = build_paragraph(stats)
     print(paragraph)

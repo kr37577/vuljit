@@ -766,7 +766,7 @@ def main():
     parser.add_argument('--patch-coverage', dest='patch', default=os.environ.get('VULJIT_PATCH_COV_DIR'), help='patch_coverage_base_path (default: $VULJIT_PATCH_COV_DIR)')
     parser.add_argument('--out', default=os.environ.get('VULJIT_BASE_DATA_DIR'), help='output_base_path (default: $VULJIT_BASE_DATA_DIR or datasets/derived_artifacts/aggregate)')
     # 任意: 日付範囲（YYYYMMDD または YYYY-MM-DD）
-    parser.add_argument('--start-date', dest='start_date', default="2018-10-12", help='集約対象の開始日 (例: 20181012)')
+    parser.add_argument('--start-date', dest='start_date', default="2018-08-22", help='集約対象の開始日 (例: 20181012)')
     parser.add_argument('--end-date', dest='end_date', default="2025-06-01", help='集約対象の終了日 (例: 20250601)')
     args = parser.parse_args()
 
