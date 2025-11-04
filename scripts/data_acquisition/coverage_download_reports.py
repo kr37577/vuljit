@@ -1,10 +1,10 @@
 import csv
+import sys
 from google.cloud import storage
 import os
 from datetime import datetime
 import concurrent.futures
 import threading
-import gzip  # gzipモジュールをインポート
 
 # スレッドセーフなカウンタクラス
 
@@ -61,7 +61,7 @@ def download_target_files_from_gcs_period(csv_data, start_date_str, end_date_str
     """
     CSVから重複を除いたpackage_nameを読み込み、指定期間内のGCSレポートディレクトリ下の
     {target_name}/linux サブディレクトリを探索し、指定されたファイル名リストに一致するファイルを
-    ダウンロードして .gz 形式で圧縮し、階層構造で保存する (並列処理・ターゲットディレクトリ対応・圧縮対応版)。
+    ダウンロードして階層構造で保存する (並列処理・ターゲットディレクトリ対応版)。
 
     Args:
         csv_data (str): CSV形式の文字列データ。
@@ -69,7 +69,7 @@ def download_target_files_from_gcs_period(csv_data, start_date_str, end_date_str
         end_date_str (str): ダウンロード対象期間の終了日 ('YYYYMMDD'形式)。
         target_filenames (list[str]): ダウンロードしたいファイル名のリスト (例: ['summary.json'])。
         save_directory (str): 保存先ルートディレクトリパス。
-                                この下に {package_name}/{date}/{target_name}/linux/{filename}.gz が作成される。
+                                この下に {package_name}/{date}/{target_name}/linux/{filename} が作成される。
         max_workers (int): 並列ダウンロードに使用する最大ワーカースレッド数。
     """
     # target_filenames が None の場合や空の場合のチェック（これは前回同様のものです）
@@ -90,7 +90,7 @@ def download_target_files_from_gcs_period(csv_data, start_date_str, end_date_str
         print(
             f"指定された期間: {start_date.strftime('%Y-%m-%d')} から {end_date.strftime('%Y-%m-%d')}")
         print(
-            f"ダウンロード対象ファイル (各ターゲットの linux ディレクトリ内、.gzで圧縮): {target_filenames}")
+            f"ダウンロード対象ファイル (各ターゲットの linux ディレクトリ内): {target_filenames}")
         print(f"最大並列ワーカー数: {max_workers}")
     except ValueError:
         print("エラー: 開始日または終了日の形式が不正です ('YYYYMMDD'形式で指定してください)。")
@@ -279,35 +279,33 @@ def download_target_files_from_gcs_period(csv_data, start_date_str, end_date_str
                     continue # 日付形式でないものはスキップ
 
                 # 保存パスを構築し、ダウンロード処理
-                compressed_file_path = os.path.join(local_save_dir, f"{file_name}.gz")
+                local_file_path = os.path.join(local_save_dir, file_name)
 
                 # 既にファイルが存在する場合はスキップ
-                if os.path.exists(compressed_file_path):
+                if os.path.exists(local_file_path):
                     continue
 
                 print_target = target_name if target_name != "no_target" else "(no target)"
-                print(f"[{package_name}/{date_str}/{print_target}] ダウンロード＆圧縮中 [{file_name}.gz]")
+                print(f"[{package_name}/{date_str}/{print_target}] ダウンロード中 [{file_name}]")
                 
                 os.makedirs(local_save_dir, exist_ok=True)
-                
-                content = blob.download_as_bytes()
-                with gzip.open(compressed_file_path, 'wb') as f_gz:
-                    f_gz.write(content)
+
+                blob.download_to_filename(local_file_path)
                 
                 package_local_download_count += 1
 
             except Exception as download_err:
                 print(f"[{package_name}] エラー: ファイル処理中にエラーが発生しました ({blob.name}): {download_err}")
                 # エラーが発生した場合、中途半端に作成されたファイルを削除する
-                if 'compressed_file_path' in locals() and os.path.exists(compressed_file_path):
+                if 'local_file_path' in locals() and os.path.exists(local_file_path):
                     try:
-                        os.remove(compressed_file_path)
+                        os.remove(local_file_path)
                     except OSError:
                         pass # 削除失敗は無視
                 continue
 
         if package_local_download_count > 0:
-            print(f"[{package_name}] 完了: 合計 {package_local_download_count} 個の新規ファイルを圧縮・保存しました。")
+            print(f"[{package_name}] 完了: 合計 {package_local_download_count} 個の新規ファイルを保存しました。")
         else:
             print(f"[{package_name}] 完了: 新規にダウンロードする対象ファイルはありませんでした（調査済みまたは期間外）。")
             
@@ -332,7 +330,7 @@ def download_target_files_from_gcs_period(csv_data, start_date_str, end_date_str
                 print(f"エラー: 並列処理タスクの実行中に予期せぬエラーが発生しました: {exc}")
 
     print(f"\n--- すべての処理が完了しました ---")
-    print(f"合計 {total_downloaded_counter.get_value()} 個のファイルを圧縮して保存しました。")
+    print(f"合計 {total_downloaded_counter.get_value()} 個のファイルを保存しました。")
     print(f"データは {save_directory} に保存されています。")
 
 
@@ -342,19 +340,35 @@ if __name__ == "__main__":
 
     # Resolve repo root (this file is under <repo>/vuljit/download_gcs)
     this_dir = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.abspath(os.path.join(this_dir, '..'))
+    repo_root = os.path.abspath(os.path.join(this_dir, '..', '..'))
 
     parser = argparse.ArgumentParser(description="Download oss-fuzz coverage report files (gz) from GCS over a period.")
-    parser.add_argument('--csv', dest='csv_file_path', default=os.environ.get('VULJIT_VUL_CSV', os.path.join(repo_root, 'data', 'oss_fuzz_vulns_0802.csv')),
-                        help='Path to CSV file which contains package_name column (default: env VULJIT_VUL_CSV or vuljit/datasets/raw/oss_fuzz_vulns_0802.csv)')
+    default_csv_path = os.environ.get(
+        'VULJIT_VUL_CSV',
+        os.path.join(
+            repo_root,
+            'datasets',
+            'derived_artifacts',
+            'vulnerability_reports',
+            'oss_fuzz_vulnerabilities.csv',
+        ),
+    )
+    parser.add_argument('--csv', dest='csv_file_path', default=default_csv_path,
+                        help='Path to CSV file which contains package_name column '
+                             '(default: env VULJIT_VUL_CSV or datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv)')
     parser.add_argument('--start', dest='start_date', default=os.environ.get('VULJIT_START_DATE', '20160101'),
                         help='Start date YYYYMMDD (default: env VULJIT_START_DATE or 20160101)')
     parser.add_argument('--end', dest='end_date', default=os.environ.get('VULJIT_END_DATE', '20250802'),
                         help='End date YYYYMMDD (default: env VULJIT_END_DATE or 20250802)')
-    parser.add_argument('--out', dest='dest_dir', default=os.environ.get('VULJIT_COVERAGE_DIR', os.path.join(repo_root, 'data', 'coverage_gz')),
-                        help='Destination root directory (default: env VULJIT_COVERAGE_DIR or vuljit/datasets/raw/coverage_gz)')
-    parser.add_argument('--workers', dest='num_workers', type=int, default=int(os.environ.get('VULJIT_WORKERS', '8')),
-                        help='Parallel workers (default: env VULJIT_WORKERS or 8)')
+    default_out_dir = os.environ.get(
+        'VULJIT_COVERAGE_DIR',
+        os.path.join(repo_root, 'datasets', 'raw', 'coverage_report')
+    )
+    parser.add_argument('--out', dest='dest_dir', default=default_out_dir,
+                        help='Destination root directory '
+                             '(default: env VULJIT_COVERAGE_DIR or datasets/raw/coverage_report)')
+    parser.add_argument('--workers', dest='num_workers', type=int, default=int(os.environ.get('VULJIT_WORKERS', '16')),
+                        help='Parallel workers (default: env VULJIT_WORKERS or 16)')
     parser.add_argument('--file', dest='files', action='append', default=None,
                         help='Target file name to download (repeatable), e.g., --file summary.json')
     parser.add_argument('--files', dest='files_csv', default=os.environ.get('VULJIT_COVERAGE_FILES', 'summary.json'),

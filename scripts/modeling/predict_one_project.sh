@@ -21,6 +21,11 @@ fi
 cd /work/riku-ka/vuljit
 mkdir -p logs errors
 
+DEFAULT_DATA_DIR='/work/riku-ka/vuljit/datasets/derived_artifacts/aggregate'
+if [[ -z "${VULJIT_BASE_DATA_DIR:-}" ]]; then
+  export VULJIT_BASE_DATA_DIR="$DEFAULT_DATA_DIR"
+fi
+
 # --- Python環境（pyenv が無ければ python3 にフォールバック） ---
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
@@ -45,7 +50,7 @@ echo "======================================================================"
 echo "Project: ${PROJECT}"
 echo "Python : ${PYTHON_EXEC}"
 echo "Running: cli.py prediction train -p ${PROJECT}"
-"${PYTHON_EXEC}" /work/riku-ka/vuljit/cli.py prediction train -p "${PROJECT}"
+"${PYTHON_EXEC}" /work/riku-ka/vuljit/scripts/orchestration/cli.py prediction train -p "${PROJECT}"
 rc=$?
 echo "Exit code: $rc"
 echo "======================================================================"

@@ -6,7 +6,7 @@ from typing import Dict, List
 
 
 def _repo_root() -> str:
-    # This file lives in <repo>/vuljit/cli.py; repo root is dirname of this file
+    # This file lives in <repo>/scripts/orchestration/cli.py; treat this directory as root for relative paths
     return os.path.dirname(os.path.abspath(__file__))
 
 
@@ -193,7 +193,16 @@ def cmd_metrics_coverage_aggregate(args: argparse.Namespace) -> int:
     scripts_root = os.path.abspath(os.path.join(root, '..'))
     script = os.path.join(scripts_root, 'metric_extraction', 'coverage_aggregation', 'process_coverage_project.py')
     coverage_root = args.src or os.environ.get('VULJIT_COVERAGE_DIR') or os.path.join(root, 'data', 'coverage_gz')
-    out_root = args.out or os.path.join(os.environ.get('VULJIT_OUTPUTS_DIR', os.path.join(root, 'outputs')), 'metrics', 'coverage_aggregate')
+    if args.out:
+        out_root = args.out
+    else:
+        out_root = os.environ.get('VULJIT_COVERAGE_METRICS_DIR')
+        if not out_root:
+            base_data_dir = os.environ.get('VULJIT_BASE_DATA_DIR')
+            if base_data_dir:
+                out_root = os.path.join(base_data_dir, 'coverage_metrics')
+            else:
+                out_root = os.path.join(root, 'datasets', 'coverage_metrics')
     _ensure_dirs(out_root)
     # each project dir under coverage_root
     projects = [d for d in os.listdir(coverage_root) if os.path.isdir(os.path.join(coverage_root, d))]
@@ -317,7 +326,8 @@ def main(argv=None) -> int:
 
     def _pred_cmd(script_rel: str, extra_args: List[str] | None = None) -> int:
         root = _repo_root()
-        script = os.path.join(root, 'prediction', script_rel)
+        scripts_root = os.path.abspath(os.path.join(root, '..'))
+        script = os.path.join(scripts_root, 'modeling', script_rel)
         cmd = [sys.executable, script] + (extra_args or [])
         print('Running:', ' '.join(cmd))
         return subprocess.call(cmd)

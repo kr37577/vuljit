@@ -26,8 +26,18 @@ def process_coverage_data(project_base_dir_str, output_root: str | None = None):
     if output_root:
         output_dir = Path(output_root) / project_name
     else:
-        script_dir = Path(__file__).resolve().parent
-        output_dir = script_dir / "output_project_0802" / project_name
+        env_out_root = os.environ.get('VULJIT_COVERAGE_METRICS_DIR')
+        if env_out_root:
+            resolved_root = Path(env_out_root)
+        else:
+            base_data_dir = os.environ.get('VULJIT_BASE_DATA_DIR')
+            if base_data_dir:
+                resolved_root = Path(base_data_dir) / "coverage_metrics"
+            else:
+                script_dir = Path(__file__).resolve().parent
+                repo_root = script_dir.parents[3] if len(script_dir.parents) >= 4 else script_dir
+                resolved_root = repo_root / "datasets" / "coverage_metrics"
+        output_dir = resolved_root / project_name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # --- Per-file CSV ---
@@ -243,6 +253,8 @@ def process_coverage_data(project_base_dir_str, output_root: str | None = None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description='Process coverage JSONs for a project and emit per-file/total CSVs.')
     ap.add_argument('project_dir', help='Path to project directory that contains date subdirs with JSONs')
-    ap.add_argument('--out', dest='out_root', default=None, help='Output root directory (default: script_dir/output_project_0802)')
+    ap.add_argument('--out', dest='out_root', default=None,
+                    help='Output root directory (default: VULJIT_COVERAGE_METRICS_DIR, '
+                         'VULJIT_BASE_DATA_DIR/coverage_metrics, or <repo>/datasets/coverage_metrics)')
     args = ap.parse_args()
     process_coverage_data(args.project_dir, output_root=args.out_root)

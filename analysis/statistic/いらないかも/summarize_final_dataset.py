@@ -442,7 +442,7 @@ def main():
         default_results = None
 
     parser = argparse.ArgumentParser(description='Collect final daily-level dataset statistics and fill OSV/coverage narrative counts.')
-    parser.add_argument('--base', default=default_base, help='Base data directory containing per-project daily CSVs.')
+    parser.add_argument('--base', default=default_base, help='Base data directory containing per-project daily CSVs (auto-detects common datasets if omitted).')
     parser.add_argument('--out', default=default_results, help='Results base directory to write stats under.')
     parser.add_argument('--results', default=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'datasets', 'model_outputs'), help='Base results directory containing per-model subfolders.')
     parser.add_argument('--models', nargs='*', default=['xgboost', 'random_forest', 'random'], help='Model folder names under --results to consider for common projects.')
@@ -460,16 +460,31 @@ def main():
     parser.add_argument('--coverage-root', default=_resolve_default_coverage_root(), help='Coverage reports root (downloaded OSS-Fuzz daily coverage).')
     parser.add_argument('--min-issues-per-repo', type=int, default=10, help='Threshold for min vulnerability reports per repo.')
     # Period filters
-    parser.add_argument('--coverage-start', type=str, default='2018-10-12', help='Coverage period start YYYY-MM-DD (inclusive).')
+    parser.add_argument('--coverage-start', type=str, default='2016-01-01', help='Coverage period start YYYY-MM-DD (inclusive).')
     parser.add_argument('--coverage-end', type=str, default='2025-06-01', help='Coverage period end YYYY-MM-DD (inclusive).')
-    parser.add_argument('--dataset-start', type=str, default='2018-10-12', help='Dataset period start YYYY-MM-DD (inclusive).')
+    parser.add_argument('--dataset-start', type=str, default='2016-01-01', help='Dataset period start YYYY-MM-DD (inclusive).')
     parser.add_argument('--dataset-end', type=str, default='2025-06-01', help='Dataset period end YYYY-MM-DD (inclusive).')
     args = parser.parse_args()
 
-    if not args.base:
-        here = os.path.dirname(os.path.abspath(__file__))
-        repo_root = os.path.abspath(os.path.join(here, '..', '..'))
-        args.base = os.path.join(repo_root, 'datasets')
+    here = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(here, '..', '..'))
+    workspace_root = os.path.abspath(os.path.join(repo_root, '..'))
+
+    env_base = os.environ.get('VULJIT_BASE_DATA_DIR') or os.environ.get('VULJIT_DATASET_DIR')
+    base_candidates: List[str] = []
+    if args.base:
+        base_candidates.append(args.base)
+    if env_base:
+        base_candidates.append(env_base)
+    if default_base and default_base not in base_candidates:
+        base_candidates.append(default_base)
+    base_candidates.extend([
+        os.path.join(workspace_root, 'daily_commit_summary_past_vul_0802'),
+        os.path.join(workspace_root, 'daily_commit_summary_past_vul'),
+        os.path.join(repo_root, 'datasets'),
+    ])
+    resolved_base = next((c for c in base_candidates if c and os.path.isdir(c)), os.path.join(repo_root, 'datasets'))
+    args.base = resolved_base
 
     # Parse period args to date
     def _parse_date_arg(s: str | None) -> date | None:

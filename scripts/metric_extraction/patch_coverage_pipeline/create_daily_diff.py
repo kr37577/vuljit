@@ -1,18 +1,55 @@
 import os
+import re
+import argparse
+import subprocess
 import pandas as pd
 from pathlib import Path
 import git
-import argparse
+from typing import Optional, Dict, Tuple, List
+from multiprocessing import Pool
 
-"""
-Args and env defaults are used instead of hard-coded absolute paths.
-"""
+# --- 設定 ---
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent.parent.parent
+
+DEFAULT_INPUT_CSV_DIRECTORY = Path(
+    os.environ.get(
+        "VULJIT_PATCH_COVERAGE_INPUTS_DIR",
+        REPO_ROOT / "datasets" / "derived_artifacts" / "patch_coverage_inputs",
+    )
+)
+DEFAULT_CLONED_REPOS_DIRECTORY = Path(
+    os.environ.get(
+        "VULJIT_CLONED_REPOS_DIR",
+        REPO_ROOT / "datasets" / "intermediate" / "cloned_repos",
+    )
+)
+DEFAULT_OUTPUT_DIRECTORY = Path(
+    os.environ.get(
+        "VULJIT_PATCH_COVERAGE_DIFFS_DIR",
+        REPO_ROOT / "data" / "intermediate" / "patch_coverage" / "daily_diffs",
+    )
+)
 
 # 4. 差分抽出の対象とするファイルの拡張子リスト
 CODE_FILE_EXTENSIONS = [
     '.c', '.cc', '.cpp', '.cxx', '.c++',
     '.h', '.hh','hpp', '.hxx', '.h++'
 ]
+# 事前にタプルへ（endswith の高速化）
+TARGET_EXTS = tuple(CODE_FILE_EXTENSIONS)
+
+# Repoオブジェクトのシンプルなキャッシュ（同一リポでの再オープンを避ける）
+_REPO_CACHE: Dict[str, git.Repo] = {}
+
+def _get_repo(repo_path: Path) -> git.Repo:
+    key = str(repo_path)
+    repo = _REPO_CACHE.get(key)
+    if repo is None:
+        repo = git.Repo(key)
+        _REPO_CACHE[key] = repo
+    return repo
 # ----------------
 
 def get_repo_dir_name_from_url(url: str) -> str:
@@ -26,32 +63,28 @@ def get_repo_dir_name_from_url(url: str) -> str:
 def get_changed_files(repo_path: Path, old_revision: str, new_revision: str, extensions: list) -> list:
     """
     2つのリビジョン間の差分をとり、指定された拡張子に一致するファイルパスのリストを返す。
+    create_daily_diff.py と同様に、拡張子判定は大小文字非依存で行う。
     """
-    changed_files = []
+    # 高速化版: `git diff --name-only`で全ファイル名を取得し、Python側で拡張子フィルタ
     try:
-        repo = git.Repo(str(repo_path))
-        # 2つのコミットオブジェクトを取得
-        commit1 = repo.commit(old_revision)
-        commit2 = repo.commit(new_revision)
+        if not repo_path.is_dir():
+            print(f"  - エラー: リポジトリパスが見つかりません: {repo_path}")
+            return []
 
-        # 差分を取得
-        diff_index = commit1.diff(commit2)
+        cmd = [
+            'git', '-C', str(repo_path), 'diff', '--name-only',
+            str(old_revision), str(new_revision)
+        ]
+        env = os.environ.copy()
+        env.setdefault('GIT_OPTIONAL_LOCKS', '0')
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, env=env)
+        names = [line.strip() for line in out.decode('utf-8', errors='ignore').splitlines() if line.strip()]
 
-        # 拡張子が CODE_FILE_EXTENSIONSで終わるファイルのみを抽出
+        # create_daily_diff.py と同じロジック：小文字化して endswith 判定
         target_extensions = tuple(extensions)
-        for diff_item in diff_index:
-            # 変更前と変更後のパスを取得。新規追加や削除も考慮。
-            file_path = diff_item.b_path or diff_item.a_path
-            if file_path and file_path.lower().endswith(target_extensions):
-                changed_files.append(file_path)
-
-        return changed_files
-
-    except git.exc.NoSuchPathError:
-        print(f"  - エラー: リポジトリパスが見つかりません: {repo_path}")
-        return []
-    except git.exc.BadName as e:
-        print(f"  - エラー: 不正なリビジョン: {e}")
+        files = [p for p in names if p.lower().endswith(target_extensions)]
+        return files
+    except subprocess.CalledProcessError:
         return []
     except Exception as e:
         print(f"  - 警告: 差分取得中に予期せぬエラーが発生しました: {e}")
@@ -63,76 +96,121 @@ def save_patches(repo_path: Path, old_revision: str, new_revision: str, output_d
     2つのリビジョン間の差分をファイルごとのパッチファイルとして保存する。
     保存されたパッチファイルの数を返す。
     """
+    # 高速化版: `git diff <old> <new> -- <file>`で各ファイルのパッチを取得
     try:
-        repo = git.Repo(str(repo_path))
-        commit1 = repo.commit(old_revision)
-        commit2 = repo.commit(new_revision)
-        diff_index = commit1.diff(commit2, create_patch=True) # パッチを生成するために create_patch=True を指定
+        if not repo_path.is_dir():
+            print(f"  - エラー (save_patches): リポジトリパスが見つかりません: {repo_path}")
+            return 0
 
-        target_extensions = tuple(extensions)
+        changed_files = get_changed_files(repo_path, old_revision, new_revision, extensions)
+        if not changed_files:
+            return 0
+
+        env = os.environ.copy()
+        env.setdefault('GIT_OPTIONAL_LOCKS', '0')
         saved_patch_count = 0
-
-        for diff_item in diff_index:
-            file_path_str = diff_item.b_path or diff_item.a_path
-            if file_path_str and file_path_str.lower().endswith(target_extensions):
-                # パッチ内容を取得 (バイナリデータの場合があるのでデコードする)
-                try:
-                    # diffがNoneの場合や空の場合はスキップ
-                    if diff_item.diff is None:
-                        continue
-                    patch_content = diff_item.diff.decode('utf-8')
-                    if not patch_content.strip():
-                        continue
-                except (UnicodeDecodeError, AttributeError):
-                    # デコードできないバイナリファイルの差分などはスキップ
+        for rel_path in changed_files:
+            try:
+                cmd = [
+                    'git', '-C', str(repo_path), 'diff',
+                    str(old_revision), str(new_revision), '--', rel_path
+                ]
+                patch = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, env=env)
+                patch_text = patch.decode('utf-8', errors='ignore')
+                if not patch_text.strip():
                     continue
 
-                # 保存先パスを作成 (例: {output_dir}/src/foo.c.patch)
-                # ファイルパスに / が含まれている場合を考慮
-                patch_file_path = output_dir.joinpath(file_path_str + ".patch")
+                # ヘッダ除去: diff --git / index / --- / +++ などを除外し、@@ からのハンクのみを残す
+                # 先頭から最初のハンク開始（行頭 @@）を探し、それ以前の行を捨てる
+                lines = patch_text.splitlines()
+                start_idx = 0
+                for i, line in enumerate(lines):
+                    if line.startswith('@@'):
+                        start_idx = i
+                        break
+                # ハンクが見つからない場合はスキップ
+                if not lines or not (start_idx < len(lines) and lines[start_idx].startswith('@@')):
+                    continue
+                body = "\n".join(lines[start_idx:]) + "\n"
 
-                # 保存先ディレクトリが存在しない場合は作成
+                patch_file_path = output_dir.joinpath(rel_path + ".patch")
                 patch_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-                # パッチをファイルに書き込む
                 with open(patch_file_path, 'w', encoding='utf-8') as f:
-                    f.write(patch_content)
-
+                    f.write(body)
                 saved_patch_count += 1
+            except subprocess.CalledProcessError:
+                continue
 
         return saved_patch_count
-
-    except git.exc.NoSuchPathError:
-        print(f"  - エラー (save_patches): リポジトリパスが見つかりません: {repo_path}")
-        return 0
-    except git.exc.BadName as e:
-        print(f"  - エラー (save_patches): 不正なリビジョン: {e}")
-        return 0
     except Exception as e:
         print(f"  - 警告 (save_patches): パッチ保存中に予期せぬエラーが発生しました: {e}")
         return 0
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Create daily diffs and patch files per project and date.')
-    this_dir = Path(__file__).resolve().parent
-    repo_root = this_dir.parent.parent
-    default_src = os.environ.get('VULJIT_INTERMEDIATE_DIR', str(repo_root / 'data' / 'intermediate'))
-    default_src = os.path.join(default_src, 'patch_coverage', 'revision_with_commit_date')
-    default_repos = os.environ.get('VULJIT_CLONED_REPOS_DIR', str(repo_root / 'data' / 'intermediate' / 'cloned_repos'))
-    default_out = os.environ.get('VULJIT_INTERMEDIATE_DIR', str(repo_root / 'data' / 'intermediate'))
-    default_out = os.path.join(default_out, 'patch_coverage', 'daily_diffs')
+def _outputs_exist(output_csv_path: Path, patch_output_dir: Path) -> bool:
+    try:
+        if output_csv_path.is_file() and patch_output_dir.is_dir():
+            return any(patch_output_dir.rglob("*.patch"))
+        return False
+    except Exception:
+        return False
 
-    parser.add_argument('--src', default=default_src, help='Directory containing revisions_with_commit_date_*.csv')
-    parser.add_argument('--repos', default=default_repos, help='Directory containing cloned repositories')
-    parser.add_argument('--out', default=default_out, help='Output directory for daily diffs and patches')
-    args = parser.parse_args()
+
+def _process_one(task: Tuple[int, Path, str, str, str, Path]) -> Tuple[int, int, int]:
+    i, repo_local_path, prev_rev, curr_rev, date_str, project_output_path = task
+    try:
+        output_csv_path = project_output_path / f"{date_str}.csv"
+        patch_output_dir = project_output_path / f"{date_str}_patches"
+
+        # 既存出力が揃っていればスキップ
+        if _outputs_exist(output_csv_path, patch_output_dir):
+            return (i, 0, 0)
+
+        changed_files = get_changed_files(
+            repo_local_path, prev_rev, curr_rev, CODE_FILE_EXTENSIONS
+        )
+
+        saved_patch_count = 0
+        if changed_files:
+            # pandasを経由せず軽量に出力
+            tmp_csv = output_csv_path.with_suffix('.csv.tmp')
+            output_csv_path.parent.mkdir(parents=True, exist_ok=True)
+            # 互換性のためBOM付UTF-8で出力（utf-8-sig）
+            with open(tmp_csv, 'w', encoding='utf-8-sig') as f:
+                f.write('changed_file_path\n')
+                for p in changed_files:
+                    if ',' in p or '"' in p:
+                        f.write('"' + p.replace('"', '""') + '"\n')
+                    else:
+                        f.write(p + '\n')
+            os.replace(tmp_csv, output_csv_path)
+
+            patch_output_dir.mkdir(exist_ok=True)
+            saved_patch_count = save_patches(
+                repo_local_path, prev_rev, curr_rev, patch_output_dir, CODE_FILE_EXTENSIONS
+            )
+
+        return (i, len(changed_files), saved_patch_count)
+    except Exception:
+        return (i, 0, 0)
+
+
+def main():
+    # 引数でプロジェクトや各ディレクトリを指定可能に（未指定時は従来の定数を使用）
+    ap = argparse.ArgumentParser(description="日毎の差分抽出（途中セーブ対応・安全な並列化）")
+    ap.add_argument("-p", "--project", action="append", help="処理するプロジェクト名（繰り返し可、カンマ区切りも可）")
+    ap.add_argument("--input", dest="input_dir", help="コミット日付きCSVのディレクトリ")
+    ap.add_argument("--repos", dest="repos_dir", help="gitクローンされたリポジトリの親ディレクトリ")
+    ap.add_argument("--out", dest="out_dir", help="日毎の差分出力ディレクトリ")
+    ap.add_argument("--workers", type=int, default=12, help="並列ワーカー数 (既定: 12)")
+    ap.add_argument("--progress-interval", type=int, default=10, help="進捗ファイルを更新する間隔 (件数)")
+    args = ap.parse_args()
     """
     メイン処理：コミット日付きCSVを読み込み、日毎の差分ファイルリストを生成する。
     """
-    input_path = Path(args.src)
-    repos_path = Path(args.repos)
-    output_path = Path(args.out)
+    input_path = Path(args.input_dir or DEFAULT_INPUT_CSV_DIRECTORY)
+    repos_path = Path(args.repos_dir or DEFAULT_CLONED_REPOS_DIRECTORY)
+    output_path = Path(args.out_dir or DEFAULT_OUTPUT_DIRECTORY)
 
     if not input_path.is_dir():
         print(f"エラー: 入力ディレクトリ '{input_path}' が見つかりません。")
@@ -144,7 +222,21 @@ def main():
     output_path.mkdir(exist_ok=True, parents=True)
     print(f"結果は '{output_path}' ディレクトリに保存されます。")
 
-    csv_files = list(input_path.glob('revisions_with_commit_date_*.csv'))
+    csv_files = sorted(input_path.glob('revisions_with_commit_date_*.csv'))
+
+    # プロジェクト指定がある場合はフィルタ
+    selected: Optional[set[str]] = None
+    if args.project:
+        selected = set()
+        for val in args.project:
+            if not val:
+                continue
+            for token in re.split(r"[,\s]+", val.strip()):
+                token = token.strip()
+                if token:
+                    selected.add(token)
+        if selected:
+            csv_files = [p for p in csv_files if p.stem.replace('revisions_with_commit_date_', '') in selected]
     if not csv_files:
         print(f"'{input_path}' 内に処理対象のCSVファイルが見つかりませんでした。")
         return
@@ -159,11 +251,20 @@ def main():
             df = pd.read_csv(csv_file)
             
             # 必要な列が存在するか確認
-            required_cols = ['date', 'url', 'revision']
+            required_cols = ['date', 'url', 'revision', 'repo_name']
             if not all(col in df.columns for col in required_cols):
                 print(f"  - 警告: '{csv_file.name}' に必要な列がありません。スキップします。")
                 continue
             
+            # 対象プロジェクトの行に限定
+            original_len = len(df)
+            df = df[df['repo_name'] == project_name].copy()
+            if df.empty:
+                print(f"  - 警告: プロジェクト '{project_name}' に一致する行がありません。スキップします。")
+                continue
+            if original_len != len(df):
+                print(f"  - フィルタ: {original_len}行 -> {len(df)}行 (repo_name='{project_name}')")
+
             # 日付でソートされていることを保証する (重要)
             df = df.sort_values(by='date').reset_index(drop=True)
 
@@ -177,53 +278,100 @@ def main():
             
             print(f"  - {len(df)-1} 日分の差分を処理します。")
 
-            # 2行目からループを開始し、前の行との差分を取得
-            for i in range(1, len(df)):
+            # --- 途中セーブ/再開機能（内部処理は変更しない）---
+            progress_file = project_output_path / ".progress"
+
+            def _load_progress(path: Path) -> Optional[int]:
+                try:
+                    if path.is_file():
+                        txt = path.read_text(encoding='utf-8').strip()
+                        if txt.isdigit():
+                            idx = int(txt)
+                            if idx < 1:
+                                return 1
+                            next_idx = idx + 1
+                            if next_idx >= len(df):
+                                return len(df)
+                            return next_idx
+                    return None
+                except Exception:
+                    return None
+
+            def _infer_progress_from_outputs() -> Optional[int]:
+                # 既に出力済みの日付(YYYYMMDD.csv)やパッチディレクトリから、最後に処理した行インデックスを推測
+                try:
+                    done_dates = set()
+                    for p in project_output_path.glob("*.csv"):
+                        if p.name[:8].isdigit():
+                            done_dates.add(p.name[:8])
+                    for d in project_output_path.iterdir():
+                        if d.is_dir() and d.name.endswith("_patches") and d.name[:8].isdigit():
+                            done_dates.add(d.name[:8])
+                    if not done_dates:
+                        return None
+                    last_idx = None
+                    for i in range(1, len(df)):
+                        date_str = str(df.iloc[i]['date'])
+                        if str(date_str) in done_dates:
+                            last_idx = i
+                    if last_idx is None:
+                        return None
+                    next_idx = last_idx + 1
+                    if next_idx >= len(df):
+                        return len(df)
+                    return next_idx
+                except Exception:
+                    return None
+
+            start_index = _load_progress(progress_file)
+            if start_index is None:
+                start_index = _infer_progress_from_outputs()
+            if start_index is None:
+                start_index = 1
+
+            if start_index > 1:
+                print(f"  - 再開ポイントを検出: 直近の処理インデックス={start_index} (日付={df.iloc[start_index]['date']}) から再開します。")
+
+            # 2行目相当(start_index)から日次ペアを並列処理
+            tasks: List[Tuple[int, Path, str, str, str, Path]] = []
+            for i in range(start_index, len(df)):
                 previous_row = df.iloc[i-1]
                 current_row = df.iloc[i]
-
-                # Gitリポジトリのローカルパスを取得
-                repo_url = current_row['url']
-                repo_dir_name = get_repo_dir_name_from_url(repo_url)
+                repo_dir_name = get_repo_dir_name_from_url(str(current_row['url']))
                 repo_local_path = repos_path / repo_dir_name
+                date_str = str(current_row['date'])
+                tasks.append((i, repo_local_path, str(previous_row['revision']), str(current_row['revision']), date_str, project_output_path))
 
-                # 差分のあるファイルリストを取得
-                changed_files = get_changed_files(
-                    repo_local_path,
-                    previous_row['revision'],
-                    current_row['revision'],
-                    CODE_FILE_EXTENSIONS
-                )
+            workers = max(1, args.workers)
+            prog_interval = max(1, args.progress_interval)
+            max_done = start_index - 1
+            done_count = 0
 
-                if changed_files:
-                    # 今日の日付でCSVファイルを作成
-                    output_csv_name = f"{current_row['date']}.csv"
-                    output_csv_path = project_output_path / output_csv_name
-                    
-                    # DataFrameを作成してCSVに保存
-                    diff_df = pd.DataFrame(changed_files, columns=['changed_file_path'])
-                    diff_df.to_csv(output_csv_path, index=False, encoding='utf-8-sig')
-                    print(f"    - {current_row['date']}: {len(changed_files)}個の変更ファイルをリスト '{output_csv_path.name}' に保存しました。")
+            if tasks:
+                with Pool(processes=workers) as pool:
+                    for (i_done, n_changed, n_patches) in pool.imap_unordered(_process_one, tasks):
+                        done_count += 1
+                        max_done = max(max_done, i_done)
+                        if (done_count % prog_interval) == 0:
+                            try:
+                                with open(progress_file, 'w', encoding='utf-8') as pf:
+                                    pf.write(str(max_done))
+                                    pf.flush()
+                                    os.fsync(pf.fileno())
+                            except Exception:
+                                pass
 
-                    # パッチファイルを保存するディレクトリを作成
-                    patch_output_dir = project_output_path / f"{current_row['date']}_patches"
-                    patch_output_dir.mkdir(exist_ok=True)
-
-                    # パッチファイルを保存
-                    saved_patch_count = save_patches(
-                        repo_local_path,
-                        previous_row['revision'],
-                        current_row['revision'],
-                        patch_output_dir,
-                        CODE_FILE_EXTENSIONS
-                    )
-                    if saved_patch_count > 0:
-                        print(f"    - {current_row['date']}: {saved_patch_count}個のパッチファイルを '{patch_output_dir.name}/' に保存しました。")
-
-                else:
-                    print(f"    - {current_row['date']}: 対象拡張子の変更ファイルはありませんでした。")
+                # 最終進捗を記録
+                try:
+                    with open(progress_file, 'w', encoding='utf-8') as pf:
+                        pf.write(str(max_done))
+                        pf.flush()
+                        os.fsync(pf.fileno())
+                except Exception:
+                    pass
 
             print(f"✔ プロジェクト '{project_name}' の処理が完了しました。")
+            # 完了後に進捗ファイルを残す/消すは任意だが、ここでは残しておく（再実行時のスキップに利用）
 
         except Exception as e:
             print(f"  - エラー: '{csv_file.name}' の処理中に予期せぬエラーが発生しました: {e}")

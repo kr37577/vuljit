@@ -1,7 +1,10 @@
-import pandas as pd
-import sys
-import os
 import argparse
+import os
+import sys
+from pathlib import Path
+from typing import Optional
+
+import pandas as pd
 
 # --- 設定項目 (デフォルト値。必要であれば引数で上書き可能) ---
 # これは全プロジェクト共通の脆弱性情報ファイルです。パスは固定的か、
@@ -11,6 +14,57 @@ DEFAULT_VULNERABILITIES_FILE_PATH = '/work/riku-ka/fuzz_introspector/rq3_dataset
 INTRODUCED_COMMITS_COLUMN = 'introduced_commits'  # 脆弱性情報CSV内の導入コミット列名
 COMMIT_HASH_COLUMN = 'commit_hash'  # コミットメトリクスCSV内のコミットハッシュ列名
 NEW_LABEL_COLUMN = 'is_vcc'  # 追加するラベル列名
+
+def load_vulnerabilities(vulnerabilities_path: str) -> pd.DataFrame:
+    """脆弱性CSVを読み込むヘルパー。"""
+    vulnerabilities_file = Path(vulnerabilities_path)
+    if not vulnerabilities_file.exists():
+        raise FileNotFoundError(f"脆弱性情報ファイルが見つかりません: {vulnerabilities_file}")
+
+    df = pd.read_csv(vulnerabilities_file)
+    if INTRODUCED_COMMITS_COLUMN not in df.columns:
+        raise ValueError(
+            f"脆弱性CSV '{vulnerabilities_file}' に '{INTRODUCED_COMMITS_COLUMN}' 列が見つかりません。"
+        )
+    return df
+
+
+def add_vcc_labels(
+    df_metrics: pd.DataFrame,
+    package_name: str,
+    vulnerabilities: Optional[pd.DataFrame] = None,
+    vulnerabilities_path: Optional[str] = None,
+) -> pd.DataFrame:
+    """
+    コミットメトリクス DataFrame に脆弱性導入ラベル列を追加して返す。
+    """
+    if COMMIT_HASH_COLUMN not in df_metrics.columns:
+        raise ValueError(f"コミットメトリクスに '{COMMIT_HASH_COLUMN}' 列がありません。")
+
+    if vulnerabilities is None:
+        vuln_path = vulnerabilities_path or DEFAULT_VULNERABILITIES_FILE_PATH
+        vulnerabilities = load_vulnerabilities(vuln_path)
+
+    package_vulns = vulnerabilities[vulnerabilities['package_name'] == package_name].copy()
+    unique_introduced_commits: set[str] = set()
+
+    if not package_vulns.empty:
+        package_vulns[INTRODUCED_COMMITS_COLUMN] = package_vulns[INTRODUCED_COMMITS_COLUMN].fillna('')
+        introduced_commits_series = package_vulns[INTRODUCED_COMMITS_COLUMN].astype(str).str.split(' ').explode()
+        unique_introduced_commits = set(
+            introduced_commits_series[introduced_commits_series.str.strip() != ''].dropna().astype(str).unique()
+        )
+
+    df_labeled = df_metrics.copy()
+    df_labeled[COMMIT_HASH_COLUMN] = df_labeled[COMMIT_HASH_COLUMN].astype(str)
+
+    if unique_introduced_commits:
+        df_labeled[NEW_LABEL_COLUMN] = df_labeled[COMMIT_HASH_COLUMN].isin(unique_introduced_commits)
+    else:
+        df_labeled[NEW_LABEL_COLUMN] = False
+
+    return df_labeled
+
 
 def main():
     parser = argparse.ArgumentParser(description="指定されたパッケージのコミットメトリクスに脆弱性情報を元にラベル付けします。")
@@ -35,67 +89,22 @@ def main():
     try:
         print(f"パッケージ '{package_name}' の処理を開始します...")
         print(f"ベースとなる脆弱性情報を '{vulnerabilities_file_path}' から読み込んでいます...")
-        try:
-            df_vuln_base = pd.read_csv(vulnerabilities_file_path)
-        except FileNotFoundError:
-            print(f"エラー: 脆弱性情報ファイル '{vulnerabilities_file_path}' が見つかりません。処理を終了します。")
-            sys.exit(1)
+        df_vuln_base = load_vulnerabilities(vulnerabilities_file_path)
 
-        if INTRODUCED_COMMITS_COLUMN not in df_vuln_base.columns:
-            print(
-                f"エラー: '{vulnerabilities_file_path}' に '{INTRODUCED_COMMITS_COLUMN}' 列が見つかりません。処理を終了します。")
-            sys.exit(1)
+        print(f"コミットメトリクスを '{metrics_file_path}' から読み込んでいます...")
+        df_metrics = pd.read_csv(metrics_file_path)
 
-        print(f"パッケージ '{package_name}' の脆弱情報をフィルタリングしています...")
-        # 1. 脆弱性導入コミットのリスト作成 (特定の package_name のみに限定)
-        current_package_df_vuln = df_vuln_base[df_vuln_base['package_name'] == package_name].copy()
+        df_labeled = add_vcc_labels(
+            df_metrics,
+            package_name=package_name,
+            vulnerabilities=df_vuln_base,
+        )
 
-        unique_introduced_commits = set()
-
-        if not current_package_df_vuln.empty:
-            current_package_df_vuln.loc[:, INTRODUCED_COMMITS_COLUMN] = current_package_df_vuln[
-                INTRODUCED_COMMITS_COLUMN].fillna('')
-            
-            introduced_commits_series = current_package_df_vuln[INTRODUCED_COMMITS_COLUMN].astype(
-                str).str.split(' ').explode()
-            
-            unique_introduced_commits = set(
-                introduced_commits_series[introduced_commits_series.str.strip() != ''].dropna().unique())
-        
-        if not unique_introduced_commits:
-            print(
-                f"警告: '{vulnerabilities_file_path}' から '{package_name}' の有効な脆弱性導入コミットハッシュが見つかりませんでした。")
-        else:
-            print(
-                f"'{package_name}' の重複しない脆弱性導入コミットハッシュは {len(unique_introduced_commits)} 件です。")
-            # print(f"サンプルハッシュ: {list(unique_introduced_commits)[:5]}") # 確認用
-
-        # 2. コミットメトリクスへのラベル付け
-        try:
-            print(f"コミットメトリクスを '{metrics_file_path}' から読み込んでいます...")
-            df_metrics = pd.read_csv(metrics_file_path)
-        except FileNotFoundError:
-            print(f"エラー: コミットメトリクスファイル '{metrics_file_path}' が見つかりません。'{package_name}' パッケージの処理を終了します。")
-            sys.exit(1)
-
-        if COMMIT_HASH_COLUMN not in df_metrics.columns:
-            print(f"エラー: '{metrics_file_path}' に '{COMMIT_HASH_COLUMN}' 列が見つかりません。'{package_name}' パッケージの処理を終了します。")
-            sys.exit(1)
-
-        df_metrics[COMMIT_HASH_COLUMN] = df_metrics[COMMIT_HASH_COLUMN].astype(str)
-        
-        # 比較のために unique_introduced_commits の要素も文字列型に変換 (多くは既に文字列だが念のため)
-        unique_introduced_commits_str = {str(commit) for commit in unique_introduced_commits}
-
-        df_metrics[NEW_LABEL_COLUMN] = df_metrics[COMMIT_HASH_COLUMN].isin(
-            unique_introduced_commits_str)
-
-        # 3. 結果の保存
-        os.makedirs(output_dir, exist_ok=True) # 出力ディレクトリが存在することを確認
-        df_metrics.to_csv(output_file_path, index=False)
+        os.makedirs(output_dir, exist_ok=True)  # 出力ディレクトリが存在することを確認
+        df_labeled.to_csv(output_file_path, index=False)
         print(f"処理が完了しました。結果は '{output_file_path}' に保存されました。")
 
-        num_labeled_commits = df_metrics[NEW_LABEL_COLUMN].sum()
+        num_labeled_commits = df_labeled[NEW_LABEL_COLUMN].sum()
         print(f"{num_labeled_commits} 件のコミットに脆弱性導入ラベル ('{NEW_LABEL_COLUMN}') が付けられました。")
 
     except Exception as e:

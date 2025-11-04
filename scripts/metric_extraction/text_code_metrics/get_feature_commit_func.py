@@ -2,7 +2,6 @@
 This module contains functions to extract features from a commit.
 コミットから特徴量を抽出するための関数を含むモジュール
 """
-import get_feature_commit_func
 from typing import Dict, Any
 import subprocess
 import tempfile
@@ -23,7 +22,7 @@ import re
 import shutil
 import statistics as stat
 import scipy.stats as stats
-import vccfinder_metrics_calculator
+from . import vccfinder_metrics_calculator
 import json
 import pickle
 
@@ -44,12 +43,10 @@ def get_changed_files(diff_commit):
         if diff.b_path:
             changed_files.add(diff.b_path)
 
-    # C/C++のコードファイルのみを抽出
     filtered_files = []
     for actual_file_path in changed_files:
         _, ext = os.path.splitext(actual_file_path)
         if ext.lower() in CODE_FILE_EXTENSIONS:
-            # Append the actual file path
             filtered_files.append(actual_file_path)
     return filtered_files
 
@@ -589,78 +586,50 @@ def calculate_commit_metrics(repo_path: str, commit_hash: str) -> Dict[str, Any]
     try:
         logging.info(f"メトリクス計算開始: {commit_hash}")
 
-        changed_files = get_feature_commit_func.get_changed_files(
-            diff_commit_obj)
+        changed_files = get_changed_files(diff_commit_obj)
 
         metrics['files_changed'] = len(changed_files)
-        metrics['subsystems_changed'] = get_feature_commit_func.count_subsystems(
-            changed_files)
-        metrics['directories_changed'] = get_feature_commit_func.count_directories(
-            changed_files)
+        metrics['subsystems_changed'] = count_subsystems(changed_files)
+        metrics['directories_changed'] = count_directories(changed_files)
 
         # TODO：total_lines_changed, lines_added, lines_deleted はいらない
         # VCCFinderのメトリクス計算でf10-f13で取得済み
-        total_lines_changed, lines_added, lines_deleted = get_feature_commit_func.get_line_changes(
-            diff_commit_obj)
+        total_lines_changed, lines_added, lines_deleted = get_line_changes(diff_commit_obj)
         metrics['total_lines_changed'] = total_lines_changed
         metrics['lines_added'] = lines_added
         metrics['lines_deleted'] = lines_deleted
 
-        metrics['entropy'] = get_feature_commit_func.calculate_entropy(
-            diff_commit_obj)
+        metrics['entropy'] = calculate_entropy(diff_commit_obj)
 
         total_prev_loc = 0
         past_bug_fixes = 0
         for file_path in changed_files:
-            if not get_feature_commit_func.file_exists_in_commit(repo, commit_hash, file_path):
+            if not file_exists_in_commit(repo, commit_hash, file_path):
                 continue
-            prev_loc = get_feature_commit_func.get_prev_file_line_count(
-                repo, commit_hash, file_path)
+            prev_loc = get_prev_file_line_count(repo, commit_hash, file_path)
             total_prev_loc += prev_loc
-            past_bug_fixes += get_feature_commit_func.count_past_bug_fixes(
-                repo, file_path, commit_hash)
+            past_bug_fixes += count_past_bug_fixes(repo, file_path, commit_hash)
 
         metrics['total_prev_loc'] = total_prev_loc
         metrics['past_bug_fixes'] = past_bug_fixes
 
         commit_date = commit_obj.committed_datetime
-        metrics['is_bug_fix'] = get_feature_commit_func.is_bug_fix(
-            commit_obj.message)
-        metrics['ndev'] = get_feature_commit_func.count_ndev(
-            repo, changed_files, commit_hash)
-        metrics['age'] = get_feature_commit_func.calculate_age(
-            repo, commit_date, changed_files, commit_hash)
-        metrics['nuc'] = get_feature_commit_func.count_nuc(
-            repo, changed_files, commit_hash)
+        metrics['is_bug_fix'] = is_bug_fix(commit_obj.message)
+        metrics['ndev'] = count_ndev(repo, changed_files, commit_hash)
+        metrics['age'] = calculate_age(repo, commit_date, changed_files, commit_hash)
+        metrics['nuc'] = count_nuc(repo, changed_files, commit_hash)
 
         author_email = commit_obj.author.email
-        metrics['exp'] = get_feature_commit_func.calculate_exp(
-            repo, author_email, commit_hash)
-        metrics['rexp'] = get_feature_commit_func.calculate_rexp(
-            repo, author_email, commit_date, commit_hash)
+        metrics['exp'] = calculate_exp(repo, author_email, commit_hash)
+        metrics['rexp'] = calculate_rexp(repo, author_email, commit_date, commit_hash)
 
         # fp は file_path の略
         subsystems = {fp.split('/')[0] for fp in changed_files if '/' in fp}
-        metrics['sexp'] = get_feature_commit_func.calculate_sexp(
-            repo, author_email, subsystems, commit_hash)
+        metrics['sexp'] = calculate_sexp(repo, author_email, subsystems, commit_hash)
 
-        # metrics['mean_days_since_creation'] = get_feature_commit_func.mean_days_since_creation(
-        #     repo, changed_files, commit_date)
-        # metrics['mean_past_changes'] = get_feature_commit_func.mean_of_past_changes(
-        #     repo, changed_files, commit_hash)
-        # metrics['past_different_authors'] = get_feature_commit_func.past_different_authors(
-        #     repo, changed_files, commit_hash)
-        # metrics['author_past_contributions'] = get_feature_commit_func.author_past_contributions(
-        #     repo, author_email, commit_hash)
-        # metrics['author_past_contributions_ratio'] = get_feature_commit_func.author_past_contributions_ratio(
-        #     repo, author_email, commit_hash)
-        # metrics['author_30days_past_contributions'] = get_feature_commit_func.author_30days_past_contributions(
+        # metrics['author_workload'] = author_workload(
         #     repo, author_email, commit_date, commit_hash, 30)
-        # metrics['author_30days_past_contributions_ratio'] = get_feature_commit_func.author_30days_past_contributions_ratio(
-        #     repo, author_email, commit_date, commit_hash, 30)
-        # metrics['author_workload'] = get_feature_commit_func.author_workload(
-        #     repo, author_email, commit_date, commit_hash, 30)
-        # metrics['days_after_creation'] = get_feature_commit_func.days_after_creation(
+        # metrics['days_after_creation'] = days_after_creation(
         #     repo, commit_date)
         # metrics['touched_files'] = len(changed_files)
 
@@ -669,8 +638,8 @@ def calculate_commit_metrics(repo_path: str, commit_hash: str) -> Dict[str, Any]
         #     diff_content = diff_item.diff
         #     if isinstance(diff_content, bytes):
         #         diff_content = diff_content.decode('utf-8', errors='ignore')
-        #     # get_hunk_count が get_feature_commit_func モジュール内にあると仮定
-        #     hcount = get_feature_commit_func.get_hunk_count(diff_content)
+        #     # get_hunk_count が同モジュール内にあると仮定
+        #     hcount = get_hunk_count(diff_content)
         #     hunk_count += hcount
         # metrics['number_of_hunks'] = hunk_count
 
@@ -771,7 +740,11 @@ def commit_data(repo_path, commit_hash: str, diff_commit_obj: List[git.diff.Diff
     commit_diff_text = convert_diff_list_to_text(diff_commit_obj)
 
     commit_change_file_path = all_changed_files(diff_commit_obj)
+    # ';' 区切りで保存する（既存データと互換）
+    commit_change_file_path_str = ';'.join(commit_change_file_path)
     commit_change_file_path_filetered = get_changed_files(diff_commit_obj)
+    # フィルタ済みは一覧文字列をそのまま保持
+    commit_change_file_path_filetered_str = str(commit_change_file_path_filetered)
 
     commit = repo.commit(commit_hash)
     commit_message = commit.message
@@ -783,8 +756,8 @@ def commit_data(repo_path, commit_hash: str, diff_commit_obj: List[git.diff.Diff
         "commit_hash": commit_hash,
         "commit_datetime": commit_datetime,
         "commit_message": commit_message,
-        "commit_change_file_path": commit_change_file_path,
-        "commit_change_file_path_filetered": commit_change_file_path_filetered,
+        "commit_change_file_path": commit_change_file_path_str,
+        "commit_change_file_path_filetered": commit_change_file_path_filetered_str,
         "commit_patch": commit_diff_text,
         "commit_code_patch": commit_code_patch_str,  # codeファイルのみにフィルタリングされた差分
         "file_text": commit_file_text,

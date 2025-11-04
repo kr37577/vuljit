@@ -4,7 +4,7 @@
 #SBATCH --error=errors/patch_coverage_%A_%a.err
 #SBATCH --array=1-277
 #SBATCH --time=100:00:00
-#SBATCH --partition=cluster_long
+#SBATCH --partition=cluster_low
 #SBATCH --ntasks=1
 #SBATCH --mem=50G
 #SBATCH --cpus-per-task=9

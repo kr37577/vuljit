@@ -1,8 +1,8 @@
 #!/bin/bash
 
-#SBATCH --job-name=metrics_extract
-#SBATCH --output=logs/metrics_extract_%A_%a.out
-#SBATCH --error=errors/metrics_extract_%A_%a.err
+#SBATCH --job-name=download_srcmap
+#SBATCH --output=logs/download_srcmap_%A_%a.out
+#SBATCH --error=errors/download_srcmap_%A_%a.err
 #SBATCH --array=1
 #SBATCH --time=1000:00:00
 #SBATCH --partition=cluster_low
@@ -16,14 +16,14 @@
 PYTHON_EXEC="${PYTHON_EXEC:-python3}"
 
 # Resolve repo root
-script_dir="$(cd "$(dirname "$0")" && pwd)"
-vuljit_dir="$(cd "$script_dir/.." && pwd)"
+script_dir="/work/riku-ka/vuljit/scripts"
+vuljit_dir="/work/riku-ka/vuljit"
 
 # Defaults (can be overridden by args or ENV)
-DEFAULT_VUL_CSV="${VULJIT_VUL_CSV:-${vuljit_dir}/datasets/raw/oss_fuzz_vulns.csv}"
+DEFAULT_VUL_CSV="${VULJIT_VUL_CSV:-${vuljit_dir}/datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv}"
 DEFAULT_OUTPUT_DIR="${VULJIT_SRCDOWN_DIR:-${vuljit_dir}/datasets/raw/srcmap_json}"
 DEFAULT_START_DATE="${VULJIT_START_DATE:-20160101}"
-DEFAULT_END_DATE="${VULJIT_END_DATE:-20251231}"
+DEFAULT_END_DATE="${VULJIT_END_DATE:-20250802}"
 DEFAULT_WORKERS="${VULJIT_WORKERS:-8}"
 
 # Args: [csv_path] [start_date YYYYMMDD] [end_date YYYYMMDD] [output_dir] [workers]
