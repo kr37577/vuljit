@@ -70,6 +70,7 @@ ${PYTHON_EXEC} "${PYTHON_SCRIPT_PATH_1}" "${PROJECT_ID}" "${DIRECTORY_NAME}" \
   --metrics "${METRICS_BASE_PATH}" \
   --coverage "${COVERAGE_BASE_PROJECT_PATH}" \
   --patch-coverage "${PATCH_COVERAGE_BASE_PATH}" \
+  --coverage-lag-days 0 \
   --out "${VULJIT_BASE_DATA_DIR:-${script_dir}/../../datasets/derived_artifacts/aggregate}"
 # --out "${OUTPUT_BASE_PATH}"
 

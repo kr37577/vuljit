@@ -12,9 +12,20 @@ def preprocess_dataframe_for_within_project(
     """
     print("\n--- データ前処理開始 ---")
     
-    required_cols = ['is_vcc']
+    # Backward compatibility: allow y_is_vcc / label_date columns emitted by aggregation pipeline
+    if 'is_vcc' not in df.columns and 'y_is_vcc' in df.columns:
+        df = df.copy()
+        df['is_vcc'] = df['y_is_vcc']
+    if 'merge_date' not in df.columns and 'label_date' in df.columns:
+        df = df.copy()
+        df['merge_date'] = df['label_date']
+        if 'merge_date' not in df_original_for_cols.columns and 'label_date' in df_original_for_cols.columns:
+            df_original_for_cols = df_original_for_cols.copy()
+            df_original_for_cols['merge_date'] = df_original_for_cols['label_date']
+
+    required_cols = ['is_vcc', 'merge_date']
     if not all(col in df.columns for col in required_cols):
-        print(f"エラー: 必須カラム ('is_vcc') がCSVファイルに見つかりません。")
+        print("エラー: 必須カラム ('is_vcc', 'merge_date') のいずれかがCSVに存在しません。")
         return None
 
     df_processed = df.copy()
@@ -51,7 +62,8 @@ def preprocess_dataframe_for_within_project(
     # 特徴量として使用しない列を定義
     non_feature_cols = [
         'commit_hash', 'repo_path', 'commit_datetime', 'is_vcc', 'is_vcc_processed',
-        'commit_change_file_path_filetered', 'merge_date','vcc_commit_count'
+        'commit_change_file_path_filetered', 'merge_date','vcc_commit_count',
+        'label_date', 'y_is_vcc'
     ]
     feature_columns = [col for col in df_original_for_cols.columns if col not in non_feature_cols]
 

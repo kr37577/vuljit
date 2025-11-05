@@ -146,7 +146,11 @@ def load_and_prepare_data(metrics_file, coverage_file_project, coverage_file_pro
         return None, None, None
 
 # --- ▼▼▼【変更なし】コミットごとのカバレッジ計算関数 ▼▼▼ ---
-def calculate_commit_coverage(metrics_df, coverage_project_df, coverage_project_total_df, patch_coverage_df):
+def calculate_commit_coverage(metrics_df,
+                              coverage_project_df,
+                              coverage_project_total_df,
+                              patch_coverage_df,
+                              coverage_lag_days=1):
     """
     データフレームを受け取り、コミットごとのカバレッジ【絶対値】を計算して結果を返す。
     """
@@ -176,7 +180,10 @@ def calculate_commit_coverage(metrics_df, coverage_project_df, coverage_project_
 
     metrics_df.sort_values(by='merge_date', inplace=True)
 
-    print(f"  -> {len(metrics_df)}件のコミットのカバレッジ絶対値を計算中...")
+    lag_days = max(0, int(coverage_lag_days))
+    lag_delta = timedelta(days=lag_days)
+
+    print(f"  -> {len(metrics_df)}件のコミットのカバレッジ絶対値を計算中 (ラグ {lag_days} 日)...")
     for _, commit_row in tqdm(metrics_df.iterrows(), total=metrics_df.shape[0], desc="  コミット処理"):
         commit_hash = commit_row['commit_hash']
         commit_date = commit_row['merge_date']
@@ -202,14 +209,13 @@ def calculate_commit_coverage(metrics_df, coverage_project_df, coverage_project_
         commit_result['patch_covered_added_lines'] = np.nan
         commit_result['patch_coverage_recalculated'] = np.nan
 
-        # 前日が存在する時だけ採用
-        prev_date = commit_date - timedelta(days=1)
-        has_prev_coverage = prev_date in available_dates_set
+        # 指定したラグ日数だけ遡った日付を採用
+        target_date = commit_date - lag_delta
+        has_prev_coverage = target_date in available_dates_set
         commit_result['has_prev_coverage'] = int(has_prev_coverage)
-        target_date = prev_date if has_prev_coverage else None
 
-        daily_coverage_df = cov_by_date.get(target_date, pd.DataFrame())
-        daily_coverage_total_df = tot_by_date.get(target_date, pd.DataFrame())
+        daily_coverage_df = cov_by_date.get(target_date, pd.DataFrame()) if has_prev_coverage else pd.DataFrame()
+        daily_coverage_total_df = tot_by_date.get(target_date, pd.DataFrame()) if has_prev_coverage else pd.DataFrame()
 
         matching_indices = []
         if changed_files and not daily_coverage_df.empty:
@@ -409,7 +415,10 @@ def process_project_coverage(project_id,
                              patch_coverage_base_path,
                              output_base_path,
                              start_date=None,
-                             end_date=None):
+                             end_date=None,
+                             coverage_lag_days=1,
+                             enforce_prev_coverage=True,
+                             lag_daily_features=True):
     """
     単一プロジェクトのカバレッジ計算処理全体を管理する。
     """
@@ -452,14 +461,21 @@ def process_project_coverage(project_id,
 
     patch_coverage_df = load_patch_coverage_data(patch_coverage_file)
 
-    result_df = calculate_commit_coverage(metrics_df, coverage_project_df, coverage_project_total_df, patch_coverage_df)
+    lag_days = max(0, int(coverage_lag_days))
+    result_df = calculate_commit_coverage(
+        metrics_df,
+        coverage_project_df,
+        coverage_project_total_df,
+        patch_coverage_df,
+        coverage_lag_days=lag_days,
+    )
 
     if result_df is None or result_df.empty:
         print(f"ℹ️  プロジェクト '{project_id}' で処理できるデータがありませんでした。")
         return
 
     # TF-IDF を計算する前に対象コミットをカバレッジ付きに限定し、コミット時刻を正規化
-    if 'has_prev_coverage' in result_df.columns:
+    if 'has_prev_coverage' in result_df.columns and enforce_prev_coverage:
         coverage_flag = (
             pd.to_numeric(result_df['has_prev_coverage'], errors='coerce')
             .fillna(0)
@@ -495,6 +511,15 @@ def process_project_coverage(project_id,
 
     result_df = coverage_commits_df
 
+    # DayT のコミットを DayT+1 の行に配置
+    if 'merge_date' in result_df.columns:
+        result_df['merge_date'] = pd.to_datetime(result_df['merge_date'], errors='coerce')
+        dropped_merge_na = result_df['merge_date'].isna().sum()
+        if dropped_merge_na:
+            print(f"  警告: merge_date が欠損している {dropped_merge_na} 行を除外します。")
+        result_df = result_df.dropna(subset=['merge_date'])
+        result_df['merge_date'] = (result_df['merge_date'] + pd.Timedelta(days=1)).dt.date
+
     # --- 日毎の集約処理 ---
 
     print(f"  -> 日毎のデータ集約を計算中...")
@@ -527,8 +552,11 @@ def process_project_coverage(project_id,
         full_dates = pd.date_range(tot.index.min(), tot.index.max(), freq='D')
         tot = tot.reindex(full_dates)
 
-    last_prev     = tot[[f'project_total_{t}_percent' for t in coverage_types]].shift(1)   # t−1
-    last_prevprev = tot[[f'project_total_{t}_percent' for t in coverage_types]].shift(2)   # t−2
+    base_totals = tot[[f'project_total_{t}_percent' for t in coverage_types]]
+    # DayT の情報を DayT+1 行に載せているため、参照側を行シフト分だけ遅らせる
+    row_shift = 1
+    last_prev     = base_totals.shift(lag_days + row_shift)         # (DayT+1)−(lag+1) = DayT−lag
+    last_prevprev = base_totals.shift(lag_days + row_shift + 1)     # (DayT−lag)−1
     # (t−1) − (t−2) を作り、列名に _delta を付与して上書き事故を防ぐ
     tot_deltas = (last_prev - last_prevprev)
     tot_deltas.columns = [f'{c}_delta' for c in tot_deltas.columns]                                      # (t−1) − (t−2)
@@ -549,8 +577,9 @@ def process_project_coverage(project_id,
         if not pc.empty:
             full_dates_pc = pd.date_range(pc.index.min(), pc.index.max(), freq='D')
             pc = pc.reindex(full_dates_pc)
-        patch_prev  = pc.shift(1)                 # t−1
-        patch_delta = pc.shift(1) - pc.shift(2)   # (t−1) − (t−2)
+        # 行シフト分 (+1日) を反映して DayT の値を DayT+1 行に結合
+        patch_prev  = pc.shift(lag_days + row_shift)                 # DayT−lag
+        patch_delta = patch_prev - pc.shift(lag_days + row_shift + 1)   # (DayT−lag) − (DayT−lag−1)
 
     # 3) コミットのあった日だけに引き直す（順序も保証）
     days = (result_df[['merge_date']]
@@ -697,7 +726,7 @@ def process_project_coverage(project_id,
 
     lag_feature_columns = [col for col in lag_feature_candidates if col in daily_aggregated_df.columns]
 
-    if lag_feature_columns and not daily_aggregated_df.empty:
+    if lag_daily_features and lag_feature_columns and not daily_aggregated_df.empty:
         daily_aggregated_df['merge_date'] = pd.to_datetime(daily_aggregated_df['merge_date'], errors='coerce')
         daily_aggregated_df = daily_aggregated_df.dropna(subset=['merge_date']).sort_values('merge_date')
 
@@ -716,15 +745,17 @@ def process_project_coverage(project_id,
         daily_aggregated_df['merge_date'] = daily_aggregated_df['merge_date'].dt.date
         daily_aggregated_df['feature_snapshot_date'] = daily_aggregated_df['feature_snapshot_date'].dt.date
     else:
-        daily_aggregated_df['feature_snapshot_date'] = pd.to_datetime(daily_aggregated_df['merge_date'], errors='coerce').dt.date
+        feature_snapshot_series = pd.to_datetime(daily_aggregated_df['merge_date'], errors='coerce') - pd.Timedelta(days=1)
+        daily_aggregated_df['feature_snapshot_date'] = feature_snapshot_series.dt.date
 
     if 'has_prev_coverage' in daily_aggregated_df.columns:
-        coverage_flag = (
-            pd.to_numeric(daily_aggregated_df['has_prev_coverage'], errors='coerce')
-            .fillna(0)
-            .astype(int)
-        )
-        daily_aggregated_df = daily_aggregated_df[coverage_flag == 1].copy()
+        if enforce_prev_coverage:
+            coverage_flag = (
+                pd.to_numeric(daily_aggregated_df['has_prev_coverage'], errors='coerce')
+                .fillna(0)
+                .astype(int)
+            )
+            daily_aggregated_df = daily_aggregated_df[coverage_flag == 1].copy()
         daily_aggregated_df.drop(columns=['has_prev_coverage'], inplace=True)
 
     if daily_aggregated_df.empty:
@@ -746,6 +777,11 @@ def process_project_coverage(project_id,
             print(f"  警告: しきい値チェック中にエラーが発生しましたが、保存を続行します: {e}")
 
     # 6. 結果をCSVファイルに保存
+    # 任意: 出力列名を明示化（ラベル日と目的変数）
+    if 'is_vcc' in daily_aggregated_df.columns:
+        daily_aggregated_df.rename(columns={'is_vcc': 'y_is_vcc'}, inplace=True)
+    if 'merge_date' in daily_aggregated_df.columns:
+        daily_aggregated_df.rename(columns={'merge_date': 'label_date'}, inplace=True)
     output_dir = os.path.join(output_base_path, project_id)
     os.makedirs(output_dir, exist_ok=True)
     
@@ -768,14 +804,20 @@ def main():
     # 任意: 日付範囲（YYYYMMDD または YYYY-MM-DD）
     parser.add_argument('--start-date', dest='start_date', default="2018-08-22", help='集約対象の開始日 (例: 20181012)')
     parser.add_argument('--end-date', dest='end_date', default="2025-06-01", help='集約対象の終了日 (例: 20250601)')
+    parser.add_argument('--coverage-lag-days', dest='coverage_lag_days', type=int, default=1,
+                        help='コミット日から何日前のカバレッジを参照するか (0=同日, default: 1)')
+    parser.add_argument('--disable-prev-coverage-filter', action='store_true',
+                        help='has_prev_coverage フラグによるフィルタを無効化します')
+    parser.add_argument('--disable-daily-feature-lag', action='store_true',
+                        help='日次特徴量の1日遅延を行わず、その日の特徴量として保存します')
     args = parser.parse_args()
 
     # パス設定（引数優先、未指定時は repo 相対デフォルト）
     this_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(this_dir, '..', '..'))
-    metrics_base_path = args.metrics or os.path.join(repo_root, 'datasets', 'metric_inputs')
-    coverage_base_project_path = args.coverage or os.path.join(repo_root, 'datasets', 'derived_artifacts', 'metrics', 'coverage_aggregate')
-    patch_coverage_base_path = args.patch or os.path.join(repo_root, 'datasets', 'derived_artifacts', 'metrics', 'patch_coverage')
+    metrics_base_path = args.metrics or os.path.join(repo_root, 'datasets', 'derived_artifacts', 'commit_metrics')
+    coverage_base_project_path = args.coverage or os.path.join(repo_root, 'datasets', 'derived_artifacts', 'coverage_metrics')
+    patch_coverage_base_path = args.patch or os.path.join(repo_root, 'datasets', 'derived_artifacts', 'patch_coverage_metrics')
     output_base_path = args.out or os.path.join(repo_root, 'datasets', 'derived_artifacts', 'aggregate')
 
     # 日付引数のパース
@@ -802,6 +844,13 @@ def main():
         print(f"  注意: start-date({sd}) > end-date({ed}) でした。入れ替えて処理します。")
         sd, ed = ed, sd
 
+    coverage_lag_days = args.coverage_lag_days if args.coverage_lag_days is not None else 1
+    if coverage_lag_days < 0:
+        print(f"  警告: coverage-lag-days ({coverage_lag_days}) は負の値のため 0 に丸めます。")
+        coverage_lag_days = 0
+    enforce_prev_coverage = not args.disable_prev_coverage_filter
+    lag_daily_features = not args.disable_daily_feature_lag
+
     # 単一プロジェクトの処理を呼び出し
     process_project_coverage(
         args.project_id,
@@ -811,7 +860,10 @@ def main():
         patch_coverage_base_path,
         output_base_path,
         start_date=sd,
-        end_date=ed
+        end_date=ed,
+        coverage_lag_days=coverage_lag_days,
+        enforce_prev_coverage=enforce_prev_coverage,
+        lag_daily_features=lag_daily_features
     )
 
     print(f"\n--- プロジェクト '{args.project_id}' の処理が正常に完了しました ---")

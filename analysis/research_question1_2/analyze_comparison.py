@@ -26,9 +26,9 @@ COLOR_PALETTE = {
 # 比較したいモデルのデータが格納されているベースディレクトリを辞書で設定します。
 # キー: モデル名 (グラフの凡例などで使用)
 # バリュー: 対応する結果が格納されているディレクトリのパス
-REPO_ROOT = Path(__file__).resolve().parents[3]
-RESULTS_ROOT = REPO_ROOT / "datasets" / "derived_artifacts" / "results_old"
-
+REPO_ROOT = Path(__file__).resolve().parents[2]
+RESULTS_ROOT = REPO_ROOT / "datasets" / "model_outputs" 
+# /work/riku-ka/vuljit/datasets/model_outputs
 BASE_DIRS = {
     "XGBoost": RESULTS_ROOT / "xgboost",
     "RandomForest": RESULTS_ROOT / "random_forest",
@@ -43,14 +43,17 @@ def load_experiment_data(base_dir: Path, project: str, exp_number: int) -> tuple
     """
     指定されたベースディレクトリ、プロジェクト、実験番号のデータを読み込む関数
     """
-    importance_path = base_dir / project / f"exp{exp_number}_importances.csv"
-    metrics_path = base_dir / project / f"exp{exp_number}_metrics.json"
+    project_path = Path(project)
+    importance_path = base_dir / project_path / f"exp{exp_number}_importances.csv"
+    metrics_path = base_dir / project_path / f"exp{exp_number}_metrics.json"
 
     importance_df, metrics_dict = None, None
 
     # ファイルが存在する場合のみ読み込む
     if importance_path.exists():
         importance_df = pd.read_csv(importance_path)
+        if 'importance' in importance_df.columns:
+            importance_df['importance'] = importance_df['importance'].clip(lower=0)
 
     if metrics_path.exists():
         with open(metrics_path, 'r') as f:
@@ -208,12 +211,16 @@ def export_top_n_performance(final_metrics_df: pd.DataFrame, exp_num: int, out_d
 def _find_daily_csv_for_project(project: str, valid_models: list[str]) -> Path | None:
     """モデルに依存しない日別集計CSVを、存在するモデルディレクトリから優先順で取得"""
     preference = ["XGBoost", "RandomForest", "Random"]
+    project_path = Path(project)
     for model_name in preference:
         if model_name not in valid_models:
             continue
-        p = BASE_DIRS[model_name] / project / f"{project}_daily_aggregated_metrics_with_predictions.csv"
-        if p.exists():
-            return p
+        project_root = BASE_DIRS[model_name] / project_path
+        if not project_root.exists():
+            continue
+        candidates = sorted(project_root.glob("*_daily_aggregated_metrics_with_predictions.csv"))
+        if candidates:
+            return candidates[0]
     return None
 
 
@@ -324,7 +331,7 @@ def main():
     args = parser.parse_args()
     
     output_summary_dir = REPO_ROOT / "datasets" / "derived_artifacts" / "rq1_rq2" / "evaluation_summary_comparison"
-    output_summary_dir.mkdir(exist_ok=True)
+    output_summary_dir.mkdir(parents=True, exist_ok=True)
     print(f"✅ Aggregated results will be saved to: {output_summary_dir.resolve()}")
 
     # 1. プロジェクトと実験番号を自動検出 (★修正箇所)
@@ -337,16 +344,22 @@ def main():
             print(f"⚠️ Warning: Directory for model '{model_name}' not found. Skipping: {base_dir}")
             continue
         
-        valid_models.append(model_name)
         print(f"🔍 Searching in '{model_name}' directory: {base_dir}")
-        projects_in_dir = {p.name for p in base_dir.iterdir() if p.is_dir()}
+        projects_in_dir = set()
+        for metrics_path in base_dir.rglob("exp*_metrics.json"):
+            try:
+                rel_project = metrics_path.parent.relative_to(base_dir).as_posix()
+            except ValueError:
+                continue
+            projects_in_dir.add(rel_project)
+            match = re.search(r'exp(\d+)_metrics.json', metrics_path.name)
+            if match:
+                all_exp_numbers.add(int(match.group(1)))
+        if not projects_in_dir:
+            print(f"⚠️ Warning: No experiment directories found for '{model_name}'.")
+            continue
+        valid_models.append(model_name)
         projects_per_model[model_name] = projects_in_dir
-
-        for project in projects_in_dir:
-            for f in (base_dir / project).glob("exp*_metrics.json"):
-                match = re.search(r'exp(\d+)_metrics.json', f.name)
-                if match:
-                    all_exp_numbers.add(int(match.group(1)))
 
     # 全てのモデルに共通するプロジェクトのリスト（積集合）を作成
     if not projects_per_model:

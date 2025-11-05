@@ -13,8 +13,10 @@ import argparse
 ## ------------------------------------------------------
 ## 設定
 ## ------------------------------------------------------
+REPO_ROOT = Path(__file__).resolve().parents[2]
 # 前のスクリプトで生成された集約結果が格納されているディレクトリを指定
-BASE_PATH = Path("./evaluation_summary_comparison")  # 変更
+BASE_PATH = REPO_ROOT / "datasets" / "derived_artifacts" / "rq1_rq2" / "evaluation_summary_comparison"
+BASE_PATH.mkdir(parents=True, exist_ok=True)
 COLOR_PALETTE = {
     "XGBoost": "#1f77b4",       # ブルー
     "RandomForest": "#ff7f0e",  # オレンジ
@@ -188,7 +190,7 @@ def main():
         plt.tight_layout()
         
         # グラフを画像ファイルとして保存
-        output_filename = f'comparison_trend_{metric}.png'
+        output_filename = BASE_PATH / f'comparison_trend_{metric}.png'
         plt.savefig(output_filename)
         print(f"  📈 Graph saved as '{output_filename}'")
         
@@ -271,7 +273,7 @@ def main():
                 ax.legend(title='Model', fontsize=11)
                 plt.grid(axis='y', linestyle='--', alpha=0.7)
                 plt.tight_layout()
-                out = f"trend_top{args.top_n}_avg_{metric}.png"
+                out = BASE_PATH / f"trend_top{args.top_n}_avg_{metric}.png"
                 plt.savefig(out, dpi=150)
                 print(f"  📈 Saved: {out}")
                 plt.close()
@@ -351,7 +353,7 @@ def main():
                 ax.legend(title='Model', fontsize=11)
                 plt.grid(axis='y', linestyle='--', alpha=0.7)
                 plt.tight_layout()
-                out = f"trend_top{args.top_by_positives}_bypositives_avg_{metric}.png"
+                out = BASE_PATH / f"trend_top{args.top_by_positives}_bypositives_avg_{metric}.png"
                 plt.savefig(out, dpi=150)
                 print(f"  📈 Saved: {out}")
                 plt.close()

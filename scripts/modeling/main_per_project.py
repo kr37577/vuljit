@@ -1,9 +1,10 @@
 # main.py
 import os
+import re
 import pandas as pd
 import glob
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import argparse
 import numpy as np
 import random
@@ -14,6 +15,7 @@ import settings
 import data_preparation
 import evaluation
 import reporting
+import cross_project_data
 
 
 def get_text_metric_features(df: pd.DataFrame) -> list[str]:
@@ -64,7 +66,92 @@ def _normalize_for_json(value: Any) -> Any:
     return value
 
 
-def _run_single_experiment(X_project_full: pd.DataFrame, y_project: pd.Series, feature_columns: List[str], project_name: str, experiment_name: str):
+def _parse_project_list(raw_value: Optional[str]) -> List[str]:
+    if not raw_value:
+        return []
+    return [item.strip() for item in raw_value.split(',') if item.strip()]
+
+
+def _read_project_list_file(path: Optional[str]) -> List[str]:
+    if not path:
+        return []
+    try:
+        with open(path, 'r') as handle:
+            return [line.strip() for line in handle if line.strip()]
+    except FileNotFoundError:
+        print(f"[WARN] 指定されたトレーニングプロジェクトファイルが見つかりません: {path}")
+    except Exception as exc:
+        print(f"[WARN] トレーニングプロジェクトファイルの読み取りに失敗しました ({path}): {exc}")
+    return []
+
+
+def _discover_project_csvs(base_dir: str) -> Dict[str, str]:
+    pattern = os.path.join(base_dir, '*', '*_daily_aggregated_metrics.csv')
+    mapping: Dict[str, str] = {}
+    for csv_path in sorted(glob.glob(pattern)):
+        project_name = os.path.basename(os.path.dirname(csv_path))
+        mapping.setdefault(project_name, csv_path)
+    return mapping
+
+
+def _sanitize_for_path(value: str) -> str:
+    sanitized = re.sub(r'[^A-Za-z0-9_.-]+', '_', value).strip('_')
+    return sanitized or 'default'
+
+
+def _format_scope_label(scope: str, projects: List[str]) -> str:
+    if scope in {'all', 'exclude_target'}:
+        return scope
+    if not projects:
+        return 'list_empty'
+    sorted_names = sorted(projects)
+    preview = '_'.join(sorted_names)
+    if len(preview) > 60:
+        preview = '_'.join(sorted_names[:5]) + f"_plus{len(sorted_names) - 5}"
+    return f"list_{preview}"
+
+
+def _resolve_training_projects(
+    scope: str,
+    explicit_projects: List[str],
+    available_projects: Dict[str, str],
+    target_project: str,
+) -> List[str]:
+    scope = (scope or 'list').lower()
+    explicit_set = {p for p in explicit_projects if p}
+
+    if scope == 'all':
+        candidates = sorted(available_projects.keys())
+    elif scope == 'exclude_target':
+        candidates = sorted(p for p in available_projects.keys() if p != target_project)
+    else:
+        candidates = sorted(explicit_set)
+
+    if scope != 'list' and explicit_set:
+        candidates = [p for p in candidates if p in explicit_set]
+
+    deduped: List[str] = []
+    seen = set()
+    for project in candidates:
+        if project == target_project or project in seen:
+            continue
+        if project not in available_projects:
+            continue
+        deduped.append(project)
+        seen.add(project)
+
+    return deduped
+
+
+def _run_single_experiment(
+    X_project_full: pd.DataFrame,
+    y_project: pd.Series,
+    feature_columns: List[str],
+    project_name: str,
+    experiment_name: str,
+    external_training: Optional[Dict[str, Any]] = None,
+    cross_project_eval_mode: str = 'fold',
+):
     """単一の実験（特定の特徴量セット）をN回繰り返し実行し、結果をまとめて返す。"""
     
     # ランダムベースラインは特徴量を使わないため、空でも実行
@@ -72,9 +159,12 @@ def _run_single_experiment(X_project_full: pd.DataFrame, y_project: pd.Series, f
         print("  特徴量が選択されていないため、スキップします。")
         return None, None, None, None, []
 
+    alignment_features: Optional[List[str]] = None
+
     if settings.SELECTED_MODEL == 'random':
         X_project_exp = X_project_full.copy()
         used_feature_columns = []
+        alignment_features = list(X_project_full.columns)
     else:
         existing_features = [col for col in feature_columns if col in X_project_full.columns]
         if not existing_features:
@@ -83,12 +173,34 @@ def _run_single_experiment(X_project_full: pd.DataFrame, y_project: pd.Series, f
         # ▼ 修正: 早期returnの後にあった代入をここに移動
         X_project_exp = X_project_full[existing_features].copy()
         used_feature_columns = existing_features
+        alignment_features = existing_features
        
 
     all_runs_metrics = []
     all_runs_importances = []
     all_runs_oos_preds = []
     
+    if external_training and not alignment_features:
+        alignment_features = list(X_project_full.columns)
+
+    external_payload = None
+    if external_training:
+        X_external_source = external_training.get('X')
+        y_external_source = external_training.get('y')
+        if X_external_source is None or y_external_source is None:
+            print("  [CROSS] 外部学習データが無効なため、この実験をスキップします。")
+            return None, None, None, None, []
+        if alignment_features:
+            X_external_exp = X_external_source.reindex(columns=alignment_features, fill_value=0)
+        else:
+            X_external_exp = X_external_source.copy()
+        external_payload = {
+            'X': X_external_exp,
+            'y': y_external_source,
+            'meta': external_training,
+            'eval_mode': cross_project_eval_mode,
+        }
+
     print(f"  {settings.N_REPETITIONS}回の繰り返し評価を開始します...")
     for i in range(settings.N_REPETITIONS):
         print(f"    --- Repetition {i + 1}/{settings.N_REPETITIONS} ---")
@@ -97,14 +209,32 @@ def _run_single_experiment(X_project_full: pd.DataFrame, y_project: pd.Series, f
         np.random.seed(run_random_state)
         random.seed(run_random_state)
         
-        fold_metrics, fold_importances, out_of_sample_predictions = evaluation.run_cross_validation_for_project(
-            X_project_exp, y_project, project_name, run_random_state
-        )
+        if external_payload:
+            fold_metrics, fold_importances, out_of_sample_predictions = evaluation.run_cross_project_validation(
+                X_project_exp,
+                y_project,
+                project_name,
+                run_random_state,
+                external_payload['X'],
+                external_payload['y'],
+                eval_mode=external_payload.get('eval_mode', 'fold')
+            )
+        else:
+            fold_metrics, fold_importances, out_of_sample_predictions = evaluation.run_cross_validation_for_project(
+                X_project_exp, y_project, project_name, run_random_state
+            )
         
         if fold_metrics:
             # ▼▼▼【修正箇所】繰り返し回数の情報を追加 ▼▼▼
             for metric_dict in fold_metrics:
                 metric_dict['repetition'] = i
+                if external_training:
+                    metric_dict['train_projects'] = external_training.get('projects', [])
+                    metric_dict['train_scope'] = external_training.get('scope_label')
+                    metric_dict['mode'] = 'cross_project'
+                    metric_dict['cross_eval_mode'] = cross_project_eval_mode
+                else:
+                    metric_dict['mode'] = 'within_project'
             all_runs_metrics.extend(fold_metrics)
         if fold_importances:
             all_runs_importances.extend(fold_importances)
@@ -132,7 +262,14 @@ def _run_single_experiment(X_project_full: pd.DataFrame, y_project: pd.Series, f
     return avg_metrics, avg_importances, per_fold_metrics_df, avg_preds, used_feature_columns
 
 
-def run_experiment_for_project(X_project_full: pd.DataFrame, y_project: pd.Series, feature_columns_full: List[str], project_name: str) -> Dict[str, Any]:
+def run_experiment_for_project(
+    X_project_full: pd.DataFrame,
+    y_project: pd.Series,
+    feature_columns_full: List[str],
+    project_name: str,
+    external_training: Optional[Dict[str, Any]] = None,
+    cross_project_eval_mode: str = 'fold',
+) -> Dict[str, Any]:
     """単一プロジェクトに対して、定義された実験セットを実行する。"""
     
     kamei_features_exist = [col for col in settings.KAMEI_FEATURES if col in feature_columns_full]
@@ -156,7 +293,13 @@ def run_experiment_for_project(X_project_full: pd.DataFrame, y_project: pd.Serie
     for exp_key, exp_info in experiments.items():
         # ▼▼▼【修正箇所】per_fold_df を受け取る ▼▼▼
         metrics, importances, per_fold_df, avg_preds, used_features = _run_single_experiment(
-            X_project_full, y_project, exp_info["features"], project_name, exp_info["name"]
+            X_project_full,
+            y_project,
+            exp_info["features"],
+            project_name,
+            exp_info["name"],
+            external_training=external_training,
+            cross_project_eval_mode=cross_project_eval_mode,
         )
         project_results[f"{exp_key}_metrics"] = metrics
         project_results[f"{exp_key}_importances"] = importances
@@ -171,24 +314,75 @@ def run_experiment_for_project(X_project_full: pd.DataFrame, y_project: pd.Serie
 
 def main():
     """メイン実行関数"""
+    valid_scopes = {'list', 'all', 'exclude_target'}
+    default_train_scope = settings.CROSS_PROJECT_DEFAULT_SCOPE if settings.CROSS_PROJECT_DEFAULT_SCOPE in valid_scopes else 'list'
+    scope_default_overridden = settings.CROSS_PROJECT_DEFAULT_SCOPE not in valid_scopes
+
     parser = argparse.ArgumentParser(description="プロジェクトごとのVCC予測モデルの学習と評価を実行します。")
     parser.add_argument("-p", "--project", type=str, help="処理対象の単一プロジェクト名を指定します。指定しない場合は全プロジェクトが対象です。")
+    parser.add_argument("--cross-project", action="store_true", help="ターゲット以外のプロジェクトで学習し、指定プロジェクトで評価するクロスプロジェクトモードを有効化します。")
+    parser.add_argument(
+        "--train-projects",
+        type=str,
+        default=settings.CROSS_PROJECT_TRAIN_PROJECTS,
+        help="クロスプロジェクト学習に使用するプロジェクト名をカンマ区切りで指定します。",
+    )
+    parser.add_argument(
+        "--train-projects-file",
+        type=str,
+        default=settings.CROSS_PROJECT_TRAIN_PROJECTS_FILE,
+        help="クロスプロジェクト学習に使用するプロジェクト名が1行ずつ記載されたファイルを指定します。",
+    )
+    parser.add_argument(
+        "--train-scope",
+        choices=sorted(valid_scopes),
+        default=default_train_scope,
+        help="クロスプロジェクト学習時のトレーニングプロジェクト選択ポリシーです。",
+    )
+    parser.add_argument(
+        "--cross-project-mode",
+        choices=['fold', 'full'],
+        default='fold',
+        help="クロスプロジェクト評価でFoldを使うか(fullでターゲット全体を一括評価)。",
+    )
     args = parser.parse_args()
 
-    if args.project:
-        print(f"指定されたプロジェクト '{args.project}' を処理します。")
-        search_pattern = os.path.join(settings.BASE_DATA_DIRECTORY, args.project, '*_daily_aggregated_metrics.csv')
-    else:
-        print("全プロジェクトを処理します。")
-        search_pattern = os.path.join(settings.BASE_DATA_DIRECTORY,'*/*_daily_aggregated_metrics.csv')
+    if args.cross_project and scope_default_overridden:
+        print(f"[WARN] 無効な既定クロスプロジェクトスコープ '{settings.CROSS_PROJECT_DEFAULT_SCOPE}' が指定されたため 'list' を使用します。")
 
-    csv_files = glob.glob(search_pattern, recursive=True)
+    cross_mode = bool(args.cross_project)
+    train_scope = (args.train_scope or 'list').lower()
+    cross_eval_mode = (args.cross_project_mode or 'fold').lower()
+
+    if cross_mode and not args.project:
+        print("エラー: クロスプロジェクトモードでは --project でターゲットを指定してください。")
+        return
+
+    available_project_csvs = _discover_project_csvs(settings.BASE_DATA_DIRECTORY)
+    if not available_project_csvs:
+        print(f"エラー: パス '{settings.BASE_DATA_DIRECTORY}' にCSVファイルが見つかりません。")
+        return
+
+    if args.project:
+        csv_path = available_project_csvs.get(args.project)
+        if not csv_path:
+            print(f"エラー: プロジェクト '{args.project}' のCSVが見つかりません。")
+            return
+        csv_files = [csv_path]
+        print(f"指定されたプロジェクト '{args.project}' を処理します。")
+    else:
+        csv_files = list(available_project_csvs.values())
+        print("全プロジェクトを処理します。")
 
     if not csv_files:
-        if args.project:
-            print(f"エラー: プロジェクト '{args.project}' のCSVファイルがパス '{search_pattern}' に見つかりません。")
-        else:
-            print(f"エラー: パス '{settings.BASE_DATA_DIRECTORY}' にCSVファイルが見つかりません。")
+        print("エラー: 処理対象のCSVファイルが見つかりません。")
+        return
+
+    explicit_projects = _parse_project_list(args.train_projects)
+    explicit_projects.extend(_read_project_list_file(args.train_projects_file))
+
+    if cross_mode and train_scope == 'list' and not explicit_projects:
+        print("エラー: --train-scope list の場合、--train-projects または --train-projects-file で学習対象を指定してください。")
         return
 
     print(f"{len(csv_files)}個のプロジェクトCSVファイルを処理します。")
@@ -215,9 +409,6 @@ def main():
         
         print(f"\n--- プロジェクト {project_idx + 1}/{len(csv_files)}: '{project_name}' ({csv_file}) ---")
 
-        project_results_dir = os.path.join(results_base_dir, project_name)
-        os.makedirs(project_results_dir, exist_ok=True)
-
         try:
             df = pd.read_csv(csv_file, low_memory=False)
         except Exception as e:
@@ -237,8 +428,63 @@ def main():
         if y_project.nunique() < 2:
             print(f"  プロジェクト '{project_name}': ターゲット変数が1クラスのみのためスキップします。")
             continue
-            
-        project_results = run_experiment_for_project(X_project_full, y_project, feature_columns_full, project_name)
+
+        external_training_payload = None
+        scope_tag = None
+        scope_label = None
+        if cross_mode:
+            training_projects = _resolve_training_projects(
+                train_scope,
+                explicit_projects,
+                available_project_csvs,
+                project_name,
+            )
+            if not training_projects:
+                print("  [CROSS] 学習対象のプロジェクトが決定できなかったためスキップします。")
+                continue
+
+            training_set = cross_project_data.build_training_set(
+                training_projects,
+                settings.BASE_DATA_DIRECTORY,
+                feature_columns_full,
+            )
+            if not training_set:
+                print("  [CROSS] 学習データの構築に失敗したためスキップします。")
+                continue
+
+            scope_label = _format_scope_label(train_scope, training_set.projects)
+            scope_tag = _sanitize_for_path(scope_label)
+
+            external_training_payload = {
+                'X': training_set.X,
+                'y': training_set.y,
+                'projects': training_set.projects,
+                'scope_label': scope_label,
+                'eval_mode': cross_eval_mode,
+            }
+
+            print(f"  [CROSS] {len(training_set.projects)} プロジェクト ({len(training_set.X)} サンプル) を学習に使用します。")
+            if training_set.skipped_projects:
+                skipped_msg = ', '.join(f"{k}:{v}" for k, v in training_set.skipped_projects.items())
+                print(f"  [CROSS] スキップされたプロジェクト: {skipped_msg}")
+
+        project_results_dir = os.path.join(results_base_dir, project_name)
+        if cross_mode and scope_tag:
+            project_results_dir = os.path.join(
+                project_results_dir,
+                settings.CROSS_PROJECT_RESULTS_SUBDIR,
+                scope_tag,
+            )
+        os.makedirs(project_results_dir, exist_ok=True)
+
+        project_results = run_experiment_for_project(
+            X_project_full,
+            y_project,
+            feature_columns_full,
+            project_name,
+            external_training=external_training_payload,
+            cross_project_eval_mode=cross_eval_mode,
+        )
         
         # 【変更点】元のデータフレームから、実際にモデルで使用されたデータ行のみを抽出
         df_with_predictions = df.loc[X_project_full.index].copy()
@@ -310,7 +556,13 @@ def main():
                     print(f"  エラー: {exp_key} のFoldごとの性能の保存に失敗しました: {e}")
                     
         # 【追加】予測確率が追加されたDataFrameを新しいCSVファイルに保存
-        output_prediction_csv_path = os.path.join(project_results_dir, f"{project_name}_daily_aggregated_metrics_with_predictions.csv")
+        prediction_suffix = ''
+        if cross_mode and scope_tag:
+            prediction_suffix = f"_cross_project_{scope_tag}"
+        output_prediction_csv_path = os.path.join(
+            project_results_dir,
+            f"{project_name}_daily_aggregated_metrics_with_predictions{prediction_suffix}.csv",
+        )
         df_with_predictions.to_csv(output_prediction_csv_path, index=False)
         print(f"  予測確率を追加したデータを保存しました: {output_prediction_csv_path}")
 

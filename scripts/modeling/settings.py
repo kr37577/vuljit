@@ -55,11 +55,21 @@ SAMPLING_METHOD = 'random_under'
 RANDOM_UNDER_SAMPLING_STRATEGY = 'majority'
 # --- モデル 定義 ---
 # 使用するモデルのリスト 'random_forest', 'xgboost', 'random'
-SELECTED_MODEL = os.getenv('VULJIT_MODEL', 'random_forest')  # 'random_forest' or 'xgboost' or 'random'
+SELECTED_MODEL = os.getenv('VULJIT_MODEL', 'xgboost')  # 'random_forest' or 'xgboost' or 'random'
 # 使用可能なモデルのリスト
 AVAILABLE_MODELS = ['random_forest', 'xgboost','random']
 # random予測の戦略
 RANDOM_BASELINE_STRATEGY = 'stratified'
+
+# --- クロスプロジェクト設定 ---
+# 結果出力時に within-project と分けるためのサブディレクトリ名
+CROSS_PROJECT_RESULTS_SUBDIR = os.getenv('VULJIT_CROSS_PROJECT_RESULTS_SUBDIR', 'cross_project')
+# 学習対象プロジェクトの選択方針（'list', 'all', 'exclude_target'）
+CROSS_PROJECT_DEFAULT_SCOPE = os.getenv('VULJIT_CROSS_PROJECT_SCOPE', 'list').lower()
+# 既定のトレーニングプロジェクトリスト（カンマ区切り文字列）
+CROSS_PROJECT_TRAIN_PROJECTS = os.getenv('VULJIT_TRAIN_PROJECTS', '')
+# 既定のトレーニングプロジェクトリストファイルパス
+CROSS_PROJECT_TRAIN_PROJECTS_FILE = os.getenv('VULJIT_TRAIN_PROJECTS_FILE', '')
 
 
 # --- パス定義 ---

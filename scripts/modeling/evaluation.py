@@ -362,3 +362,157 @@ def run_cross_validation_for_project(
         return _run_stratified_k_fold(X_project, y_project, project_name, run_random_state)
     else:
         raise ValueError(f"不明な評価手法が選択されています: {settings.EVALUATION_METHOD}")
+
+
+def _run_cross_project_stratified(
+    X_target: pd.DataFrame,
+    y_target: pd.Series,
+    project_name: str,
+    run_random_state: int,
+    X_external: pd.DataFrame,
+    y_external: pd.Series,
+) -> Tuple[List[Dict], List[pd.DataFrame], pd.Series]:
+    skf = StratifiedKFold(n_splits=settings.N_SPLITS_K, shuffle=True, random_state=run_random_state)
+    fold_metrics_list: List[Dict] = []
+    fold_importances_list: List[pd.DataFrame] = []
+    out_of_sample_predictions = pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+
+    for fold_num, (_, test_idx) in enumerate(skf.split(X_target, y_target)):
+        print(f"    --- Cross-Project Stratified Fold {fold_num + 1}/{settings.N_SPLITS_K} ---")
+        X_test = X_target.iloc[test_idx]
+        y_test = y_target.iloc[test_idx]
+
+        if y_test.nunique() < 2:
+            print("      注意: テストセットが単一クラスです。AUC系は算出不可になりますが、予測は生成します。")
+
+        metrics, importances_df, y_pred_proba = train_and_evaluate_fold(
+            X_external, y_external, X_test, y_test, project_name, run_random_state
+        )
+
+        if metrics:
+            metrics['fold'] = fold_num
+            fold_metrics_list.append(metrics)
+        if importances_df is not None:
+            fold_importances_list.append(importances_df)
+        if y_pred_proba is not None:
+            test_indices = X_target.iloc[test_idx].index
+            out_of_sample_predictions.loc[test_indices] = y_pred_proba
+
+    return fold_metrics_list, fold_importances_list, out_of_sample_predictions
+
+
+def _run_cross_project_time_series(
+    X_target: pd.DataFrame,
+    y_target: pd.Series,
+    project_name: str,
+    run_random_state: int,
+    X_external: pd.DataFrame,
+    y_external: pd.Series,
+) -> Tuple[List[Dict], List[pd.DataFrame], pd.Series]:
+    n_splits = settings.N_SPLITS_TIMESERIES
+    if len(y_target) < n_splits * 2:
+        print(f"  プロジェクト: サンプル数({len(y_target)})が時系列分割数({n_splits})に対して小さすぎるためスキップします。")
+        return [], [], pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+
+    fold_metrics_list: List[Dict] = []
+    fold_importances_list: List[pd.DataFrame] = []
+    out_of_sample_predictions = pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+
+    chunk_size = math.ceil(len(X_target) / n_splits)
+    indices = list(range(len(X_target)))
+    chunks = [indices[i:i + chunk_size] for i in range(0, len(indices), chunk_size)]
+
+    if settings.USE_ONLY_RECENT_FOR_TRAINING:
+        print("  [CROSS] USE_ONLY_RECENT_FOR_TRAINING はクロスプロジェクト評価では無視されます。")
+
+    for i in range(1, len(chunks)):
+        print(f"    --- Cross-Project Time-series Fold {i}/{len(chunks) - 1} ---")
+        test_idx = chunks[i]
+        print(f"      Testing on chunk {i} ({len(test_idx)} samples)")
+
+        X_test = X_target.iloc[test_idx]
+        y_test = y_target.iloc[test_idx]
+        if y_test.nunique() < 2:
+            print("      注意: テストセットが単一クラスです。AUC系は算出不可になりますが、予測は生成します。")
+
+        metrics, importances_df, y_pred_proba = train_and_evaluate_fold(
+            X_external, y_external, X_test, y_test, project_name, run_random_state
+        )
+
+        if metrics:
+            metrics['fold'] = i
+            fold_metrics_list.append(metrics)
+        if importances_df is not None:
+            fold_importances_list.append(importances_df)
+        if y_pred_proba is not None:
+            test_indices = X_target.iloc[test_idx].index
+            out_of_sample_predictions.loc[test_indices] = y_pred_proba
+
+    return fold_metrics_list, fold_importances_list, out_of_sample_predictions
+
+
+def _run_cross_project_full_holdout(
+    X_target: pd.DataFrame,
+    y_target: pd.Series,
+    project_name: str,
+    run_random_state: int,
+    X_external: pd.DataFrame,
+    y_external: pd.Series,
+) -> Tuple[List[Dict], List[pd.DataFrame], pd.Series]:
+    fold_metrics_list: List[Dict] = []
+    fold_importances_list: List[pd.DataFrame] = []
+    out_of_sample_predictions = pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+
+    metrics, importances_df, y_pred_proba = train_and_evaluate_fold(
+        X_external, y_external, X_target, y_target, project_name, run_random_state
+    )
+
+    if metrics:
+        metrics['fold'] = 0
+        fold_metrics_list.append(metrics)
+    if importances_df is not None:
+        fold_importances_list.append(importances_df)
+    if y_pred_proba is not None:
+        out_of_sample_predictions.loc[X_target.index] = y_pred_proba
+
+    return fold_metrics_list, fold_importances_list, out_of_sample_predictions
+
+
+def run_cross_project_validation(
+    X_target: pd.DataFrame,
+    y_target: pd.Series,
+    project_name: str,
+    run_random_state: int,
+    X_external: pd.DataFrame,
+    y_external: pd.Series,
+    eval_mode: str = 'fold',
+) -> Tuple[List[Dict], List[pd.DataFrame], pd.Series]:
+    """クロスプロジェクト設定でモデルを評価する。"""
+    if X_external is None or y_external is None:
+        print("  [CROSS] 外部学習データが空のためスキップします。")
+        return [], [], pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+
+    if X_external.empty or y_external.empty:
+        print("  [CROSS] 外部学習データが空のためスキップします。")
+        return [], [], pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+
+    if y_external.nunique() < 2:
+        print("  [CROSS] 外部学習データに複数のクラスが存在しないためスキップします。")
+        return [], [], pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+
+    eval_mode = (eval_mode or 'fold').lower()
+    if eval_mode == 'full':
+        print(f"--- プロジェクト '{project_name}' でクロスプロジェクト単一ホールドアウト評価を開始 ---")
+        return _run_cross_project_full_holdout(X_target, y_target, project_name, run_random_state, X_external, y_external)
+
+    if settings.EVALUATION_METHOD == 'time_series':
+        print(f"--- プロジェクト '{project_name}' でクロスプロジェクト時系列評価を開始 ---")
+        return _run_cross_project_time_series(X_target, y_target, project_name, run_random_state, X_external, y_external)
+    elif settings.EVALUATION_METHOD == 'stratified_k_fold':
+        if len(y_target) < settings.N_SPLITS_K:
+            print(f"  プロジェクト '{project_name}': サンプル数がCVの分割数({settings.N_SPLITS_K})未満です。スキップします。")
+            return [], [], pd.Series(index=X_target.index, dtype=float, name="predicted_probability")
+        print(f"--- プロジェクト '{project_name}' でクロスプロジェクト Stratified K-Fold 評価を開始 ---")
+        return _run_cross_project_stratified(X_target, y_target, project_name, run_random_state, X_external, y_external)
+    else:
+        raise ValueError(f"不明な評価手法が選択されています: {settings.EVALUATION_METHOD}")
