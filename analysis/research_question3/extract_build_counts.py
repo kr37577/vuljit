@@ -2,6 +2,7 @@ import os
 import csv
 import yaml
 import argparse
+from pathlib import Path
 
 def create_build_counts_csv(projects_base_dir: str, output_csv_file: str):
     """
@@ -72,13 +73,26 @@ def create_build_counts_csv(projects_base_dir: str, output_csv_file: str):
 
 
 if __name__ == '__main__':
-    here = os.path.dirname(os.path.abspath(__file__))
-    repo_root = os.path.abspath(os.path.join(here, '..'))
-    default_projects = os.environ.get('VULJIT_OSS_FUZZ_PROJECTS_DIR', os.path.join(repo_root, 'oss-fuzz', 'projects'))
-    default_out = os.environ.get('VULJIT_BUILD_COUNTS_CSV', os.path.join(here, 'project_build_counts.csv'))
+    here = Path(__file__).resolve().parent
+    repo_root = here.parent.parent
+    derived_root = repo_root / "datasets" / "derived_artifacts"
+    default_output_dir = derived_root / "oss_fuzz_build_counts"
+    default_output_dir.mkdir(parents=True, exist_ok=True)
+
+    default_projects = os.environ.get(
+        'VULJIT_OSS_FUZZ_PROJECTS_DIR',
+        os.path.join(str(repo_root), 'oss-fuzz', 'projects'),
+    )
+    default_out = os.environ.get(
+        'VULJIT_BUILD_COUNTS_CSV',
+        str(default_output_dir / 'project_build_counts.csv'),
+    )
 
     parser = argparse.ArgumentParser(description='Scan oss-fuzz/projects and compute builds_per_day per project')
     parser.add_argument('--projects-dir', default=default_projects, help='Path to oss-fuzz/projects directory')
     parser.add_argument('--out', default=default_out, help='Output CSV path')
     args = parser.parse_args()
-    create_build_counts_csv(args.projects_dir, args.out)
+
+    output_path = Path(args.out)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    create_build_counts_csv(args.projects_dir, str(output_path))

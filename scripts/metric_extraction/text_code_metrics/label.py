@@ -9,7 +9,7 @@ import pandas as pd
 # --- 設定項目 (デフォルト値。必要であれば引数で上書き可能) ---
 # これは全プロジェクト共通の脆弱性情報ファイルです。パスは固定的か、
 # もし頻繁に変わる場合は引数で渡すことも考えられます。
-DEFAULT_VULNERABILITIES_FILE_PATH = '/work/riku-ka/fuzz_introspector/rq3_dataset/oss_fuzz_vulns_2025802.csv'
+DEFAULT_VULNERABILITIES_FILE_PATH = 'datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv'
 
 INTRODUCED_COMMITS_COLUMN = 'introduced_commits'  # 脆弱性情報CSV内の導入コミット列名
 COMMIT_HASH_COLUMN = 'commit_hash'  # コミットメトリクスCSV内のコミットハッシュ列名

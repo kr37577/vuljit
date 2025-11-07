@@ -311,6 +311,76 @@ def export_top_by_positive_days(final_metrics_df: pd.DataFrame,
                 print(f"  📈 Saved plot: {fig_path.name}")
                 plt.close()
 
+
+def visualize_positive_day_top_projects(final_metrics_df: pd.DataFrame,
+                                        exp_num: int,
+                                        projects: list[str],
+                                        valid_models: list[str],
+                                        top_n: int,
+                                        metric_name: str,
+                                        out_dir: Path):
+    """
+    陽性(is_vcc=True)日数の多い上位プロジェクトにおける指定メトリクスをモデル間で比較し、可視化する。
+    """
+    if top_n is None or top_n <= 0:
+        return
+
+    pos_counts = []
+    for proj in projects:
+        p = _find_daily_csv_for_project(proj, valid_models)
+        if p is None:
+            continue
+        try:
+            cnt = _count_positive_days(p)
+        except Exception:
+            cnt = 0
+        pos_counts.append((proj, cnt))
+
+    if not pos_counts:
+        print("  ⚠️ Unable to visualize positives-based top projects (no daily CSV found).")
+        return
+
+    pos_df = pd.DataFrame(pos_counts, columns=["project", "positive_days"]).sort_values("positive_days", ascending=False)
+    top_projects = pos_df.head(top_n)["project"].tolist()
+    if not top_projects:
+        print("  ⚠️ No projects available for positives-based visualization.")
+        return
+
+    metric_mask = final_metrics_df["Metric"].str.lower() == str(metric_name).lower()
+    metric_df = final_metrics_df[metric_mask & final_metrics_df["project"].isin(top_projects)].copy()
+    if metric_df.empty:
+        print(f"  ⚠️ Metric '{metric_name}' not found for positives-based visualization.")
+        return
+
+    metric_df = metric_df.merge(pos_df, on="project", how="left")
+    metric_df["positive_days"] = metric_df["positive_days"].fillna(0).astype(int)
+    metric_df["project_label"] = metric_df.apply(
+        lambda row: f"{row['project']} ({row['positive_days']})", axis=1
+    )
+    metric_df = metric_df.sort_values(["positive_days", "Value"], ascending=[False, False])
+    project_order = metric_df.drop_duplicates(subset=["project_label"])["project_label"].tolist()
+
+    plt.figure(figsize=(14, max(4, 0.6 * len(project_order))))
+    ax = sns.barplot(
+        data=metric_df,
+        x="Value",
+        y="project_label",
+        hue="model",
+        palette=COLOR_PALETTE
+    )
+    ax.set_title(f"Top {len(project_order)} {metric_name} by Positive Days — Exp {exp_num}", fontsize=18, weight='bold')
+    ax.set_xlabel(metric_name, fontsize=14)
+    ax.set_ylabel("Project (positive days)", fontsize=12)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=11)
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+
+    fig_path = out_dir / f"exp{exp_num}_top{len(project_order)}_{metric_name}_by_positive_days_comparison.png"
+    plt.savefig(fig_path, dpi=150)
+    print(f"  📈 Saved positives-based comparison plot: {fig_path.name}")
+    plt.close()
+
 ## ------------------------------------------------------
 ## メイン処理 (可視化関数の呼び出し先を変更)
 ## ------------------------------------------------------
@@ -328,6 +398,7 @@ def main():
     parser.add_argument('--top-by-positives', type=int, default=0, help='陽性日数(is_vcc=True)の上位N件プロジェクトの性能を出力（0で無効）')
     parser.add_argument('--positives-metric', type=str, default='MCC', help='陽性上位プロジェクトで併せて出力する特定メトリクス名（例: MCC）')
     parser.add_argument('--plot-positives-top', action='store_true', help='陽性上位N件の棒グラフも保存する')
+    parser.add_argument('--visualize-positives-top-n', type=int, default=10, help='陽性日数上位N件の結果を追加で可視化する（0で無効）')
     args = parser.parse_args()
     
     output_summary_dir = REPO_ROOT / "datasets" / "derived_artifacts" / "rq1_rq2" / "evaluation_summary_comparison"
@@ -542,6 +613,17 @@ def main():
             args.positives_metric,
             args.plot_positives_top,
         )
+
+        if args.visualize_positives_top_n and args.visualize_positives_top_n > 0:
+            visualize_positive_day_top_projects(
+                final_metrics_df,
+                exp_num,
+                sorted_common_projects_for_exp,
+                valid_models,
+                args.visualize_positives_top_n,
+                args.positives_metric,
+                output_summary_dir,
+            )
 
         # 4. 可視化（特徴量重要度はモデルごとに、Random はスキップされる場合あり）
         num_projects_in_exp = final_metrics_df['project'].nunique()
