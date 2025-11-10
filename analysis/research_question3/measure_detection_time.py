@@ -4,7 +4,7 @@ import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 from urllib.parse import urlparse
 
 import pandas as pd
@@ -16,8 +16,10 @@ import requests
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_VULNS_REL = Path("datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv")
 DEFAULT_REPOS_REL = Path("datasets/raw/cloned_c_cpp_projects")
+DEFAULT_PROJECT_METADATA_REL = Path("datasets/derived_artifacts/oss_fuzz_metadata/oss_fuzz_project_metadata.csv")
 DEFAULT_VULNS_ARG = str(DEFAULT_VULNS_REL)
 DEFAULT_REPOS_ARG = str(DEFAULT_REPOS_REL)
+DEFAULT_PROJECT_METADATA_ARG = str(DEFAULT_PROJECT_METADATA_REL)
 LOG_PREFIX = "[measure_detection_time]"
 
 # GitHub API token (disabled by request; retain reference for future use)
@@ -32,6 +34,8 @@ print(f"{LOG_PREFIX} GitHub API は未認証モードで実行されます（GIT
 
 # Cache to avoid re-fetching data for the same commit (local or remote)
 COMMIT_DATE_CACHE: dict[str, Optional[datetime]] = {}
+REPO_PROJECT_MAP: Dict[str, List[str]] = {}
+PROJECT_MAP_INITIALISED = False
 
 
 def _strip_git_suffix(path: str) -> str:
@@ -109,14 +113,79 @@ def datetime_to_iso(dt: Optional[datetime]) -> Optional[str]:
     return dt.astimezone(timezone.utc).isoformat()
 
 
-def iter_local_repo_candidates(repo_url: str, repos_root: Path) -> Iterable[Path]:
+def _normalise_repo_url(value: Optional[str]) -> str:
+    """Normalise repository URLs for consistent matching."""
+
+    if not value:
+        return ""
+    text = value.strip()
+    if not text:
+        return ""
+    text = text.rstrip("/")
+    if text.lower().endswith(".git"):
+        text = text[:-4]
+    return text.lower()
+
+
+def load_repo_project_map(metadata_path: Optional[str]) -> Dict[str, List[str]]:
+    """Load project metadata CSV and build repo->project mapping."""
+
+    if not metadata_path:
+        return {}
+    path = Path(metadata_path)
+    if not path.is_file():
+        print(f"{LOG_PREFIX} 警告: プロジェクトメタデータCSVが見つかりません: {path}")
+        return {}
+    try:
+        df = pd.read_csv(path)
+    except Exception as exc:  # pragma: no cover - defensive
+        print(f"{LOG_PREFIX} 警告: メタデータCSVの読み込みに失敗しました ({path}): {exc}")
+        return {}
+    required_columns = {"project", "main_repo"}
+    if not required_columns.issubset(df.columns):
+        print(f"{LOG_PREFIX} 警告: メタデータCSVに必要な列がありません: {required_columns}")
+        return {}
+
+    mapping: Dict[str, List[str]] = {}
+    for _, row in df.iterrows():
+        repo_norm = _normalise_repo_url(str(row.get("main_repo", "")).strip())
+        project = str(row.get("project", "")).strip()
+        if not repo_norm or not project:
+            continue
+        mapping.setdefault(repo_norm, [])
+        if project not in mapping[repo_norm]:
+            mapping[repo_norm].append(project)
+    if not mapping:
+        print(f"{LOG_PREFIX} 警告: メタデータCSVから有効なマッピングが生成できませんでした: {path}")
+    return mapping
+
+
+def iter_local_repo_candidates(repo_url: str, repos_root: Path, repo_project_map: Optional[Dict[str, List[str]]] = None) -> Iterable[Path]:
     identifiers = get_repo_identifiers(repo_url)
+    seen: set[Path] = set()
     for identifier in identifiers:
         owner_repo = identifier.split("/")
         if len(owner_repo) == 2:
-            yield repos_root / owner_repo[0] / owner_repo[1]
-        yield repos_root / owner_repo[-1]
-        yield repos_root / identifier.replace("/", "__")
+            candidate = (repos_root / owner_repo[0] / owner_repo[1]).resolve()
+            if candidate not in seen:
+                seen.add(candidate)
+                yield candidate
+        candidate = (repos_root / owner_repo[-1]).resolve()
+        if candidate not in seen:
+            seen.add(candidate)
+            yield candidate
+        candidate = (repos_root / identifier.replace("/", "__")).resolve()
+        if candidate not in seen:
+            seen.add(candidate)
+            yield candidate
+
+    repo_norm = _normalise_repo_url(repo_url)
+    if repo_norm and repo_project_map:
+        for project in repo_project_map.get(repo_norm, []):
+            candidate = (repos_root / project).resolve()
+            if candidate not in seen:
+                seen.add(candidate)
+                yield candidate
 
 
 def get_commit_date_from_local(repo_url: str, commit_hash: str, repos_root: Optional[Path]) -> Optional[datetime]:
@@ -126,7 +195,7 @@ def get_commit_date_from_local(repo_url: str, commit_hash: str, repos_root: Opti
     if cache_key in COMMIT_DATE_CACHE:
         return COMMIT_DATE_CACHE[cache_key]
 
-    for candidate in iter_local_repo_candidates(repo_url, repos_root):
+    for candidate in iter_local_repo_candidates(repo_url, repos_root, REPO_PROJECT_MAP if PROJECT_MAP_INITIALISED else None):
         if not candidate.is_dir():
             continue
         try:
@@ -188,10 +257,16 @@ def get_commit_date_from_github(repo_path: str, commit_hash: str) -> Optional[da
     return None
 
 
-def main(vulns_csv: str, issues_csv: str, output_csv: str, repos_root: Optional[str]) -> None:
+def main(vulns_csv: str, issues_csv: str, output_csv: str, repos_root: Optional[str], project_metadata_csv: Optional[str]) -> None:
     """
     Calculates the time between vulnerability introduction and detection.
     """
+    global REPO_PROJECT_MAP, PROJECT_MAP_INITIALISED
+
+    if not PROJECT_MAP_INITIALISED:
+        REPO_PROJECT_MAP = load_repo_project_map(project_metadata_csv)
+        PROJECT_MAP_INITIALISED = True
+
     print("脆弱性データとIssueデータを読み込んでいます...")
     try:
         vulns_df = pd.read_csv(vulns_csv)
@@ -233,7 +308,8 @@ def main(vulns_csv: str, issues_csv: str, output_csv: str, repos_root: Optional[
             if not repo_path:
                 print(f"警告: GitHubリポジトリのパスを抽出できませんでした。スキップします: {repo_url}")
             else:
-                commit_date = get_commit_date_from_github(repo_path, commit_hash)
+                # NOTE: GitHub API へのフォールバック取得は一時的に無効化
+                pass
 
         commit_dates_list.append(datetime_to_iso(commit_date))
 
@@ -286,6 +362,11 @@ if __name__ == "__main__":
         help=f"ローカルにクローンしたリポジトリのルートディレクトリ (既定: {DEFAULT_REPOS_REL})",
     )
     parser.add_argument(
+        "--project-metadata",
+        default=DEFAULT_PROJECT_METADATA_ARG,
+        help=f"OSS-FuzzプロジェクトメタデータCSVのパス (既定: {DEFAULT_PROJECT_METADATA_REL})",
+    )
+    parser.add_argument(
         "legacy_args",
         nargs="*",
         help="（互換用）位置引数: [vulns_csv] [issues_csv]",
@@ -295,6 +376,7 @@ if __name__ == "__main__":
     vulns_csv_arg = args.vulns_csv
     issues_csv_arg = args.issues_csv
     repos_root_arg = args.repos_root
+    project_metadata_arg = args.project_metadata
 
     if args.legacy_args:
         if len(args.legacy_args) == 1:
@@ -309,8 +391,14 @@ if __name__ == "__main__":
     vulns_csv_path = _resolve_path(vulns_csv_arg, treat_as_default=vulns_csv_arg == DEFAULT_VULNS_ARG)
     issues_csv_path = _resolve_path(issues_csv_arg, treat_as_default=False)
     repos_root_path = _resolve_path(repos_root_arg, treat_as_default=repos_root_arg == DEFAULT_REPOS_ARG)
+    project_metadata_path = _resolve_path(
+        project_metadata_arg,
+        treat_as_default=project_metadata_arg == DEFAULT_PROJECT_METADATA_ARG,
+    )
     output_path = Path(args.output).expanduser()
     if not output_path.is_absolute():
         output_path = (Path.cwd() / output_path).resolve()
+    if output_path.parent:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    main(vulns_csv_path, issues_csv_path, str(output_path), repos_root_path)
+    main(vulns_csv_path, issues_csv_path, str(output_path), repos_root_path, project_metadata_path)
