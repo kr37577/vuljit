@@ -27,10 +27,17 @@ def scan_daily_records(csv_path: PathLike) -> List[Dict[str, object]]:
     records: List[Dict[str, object]] = []
     with open(csv_path, newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
-        if not reader.fieldnames or "merge_date" not in reader.fieldnames:
+        if not reader.fieldnames:
+            return records
+        date_column = None
+        for candidate in ("merge_date", "label_date"):
+            if candidate in reader.fieldnames:
+                date_column = candidate
+                break
+        if date_column is None:
             return records
         for row in reader:
-            date_str = (row.get("merge_date") or "").strip()
+            date_str = (row.get(date_column) or "").strip()
             if not date_str:
                 continue
             date_obj: Optional[datetime] = None

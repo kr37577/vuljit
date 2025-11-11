@@ -42,6 +42,19 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Minimal simulation runner for RQ3 additional-build strategies."
     )
+    def _default_proj_mode(env_key: str) -> str:
+        value = os.environ.get(env_key, "per_project")
+        normalized = value.strip().lower()
+        return normalized if normalized in {"per_project", "cross_project"} else "per_project"
+
+    default_strategy_modes = {
+        "strategy1": _default_proj_mode("RQ3_STRATEGY1_MODE"),
+        "strategy2": _default_proj_mode("RQ3_STRATEGY2_MODE"),
+        "strategy3": _default_proj_mode("RQ3_STRATEGY3_MODE"),
+    }
+    default_strategy4_mode = os.environ.get("RQ3_STRATEGY4_MODE", "multi").strip().lower()
+    if default_strategy4_mode not in {"multi", "simple"}:
+        default_strategy4_mode = "multi"
     parser.add_argument(
         "--predictions-root",
         default=resolve_default("phase5_minimal.predictions_root"),
@@ -62,6 +75,43 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.5,
         help="Risk score threshold used to trigger additional builds (default: 0.5).",
+    )
+    parser.add_argument(
+        "--strategy1-mode",
+        choices=("per_project", "cross_project"),
+        default=default_strategy_modes["strategy1"],
+        help="Scheduling mode for Strategy1 (default: env RQ3_STRATEGY1_MODE or 'per_project').",
+    )
+    parser.add_argument(
+        "--strategy2-mode",
+        choices=("per_project", "cross_project"),
+        default=default_strategy_modes["strategy2"],
+        help="Scheduling mode for Strategy2 (default: env RQ3_STRATEGY2_MODE or 'per_project').",
+    )
+    parser.add_argument(
+        "--strategy3-mode",
+        choices=("per_project", "cross_project"),
+        default=default_strategy_modes["strategy3"],
+        help="Scheduling mode for Strategy3 (default: env RQ3_STRATEGY3_MODE or 'per_project').",
+    )
+    parser.add_argument(
+        "--strategy3-global-budget",
+        type=float,
+        default=None,
+        help="Override global additional-build budget used by Strategy3 cross-project mode.",
+    )
+    parser.add_argument(
+        "--strategy4-mode",
+        choices=("multi", "simple"),
+        default=default_strategy4_mode,
+        help="Regression mode for Strategy4 (default: env RQ3_STRATEGY4_MODE or 'multi').",
+    )
+    parser.add_argument(
+        "--strategy4-feature",
+        dest="strategy4_features",
+        action="append",
+        default=None,
+        help="Append a feature column for Strategy4 regression (repeatable).",
     )
     parser.add_argument(
         "--detection-table",
@@ -96,11 +146,35 @@ def main() -> None:
 
     need_details = bool(args.schedules_dir or args.project_summary_output)
 
+    strategy_overrides: Dict[str, Dict[str, object]] = {}
+    if args.strategy1_mode:
+        strategy_overrides.setdefault("strategy1_median", {})["mode"] = args.strategy1_mode
+    if args.strategy2_mode:
+        strategy_overrides.setdefault("strategy2_random", {})["mode"] = args.strategy2_mode
+    if args.strategy3_mode:
+        strategy_overrides.setdefault("strategy3_line_proportional", {})["mode"] = args.strategy3_mode
+    if args.strategy3_global_budget is not None:
+        strategy_overrides.setdefault("strategy3_line_proportional", {})["global_budget"] = float(args.strategy3_global_budget)
+
+    strategy4_features = None
+    if args.strategy4_features:
+        strategy4_features = [feature.strip() for feature in args.strategy4_features if feature and feature.strip()]
+        if not strategy4_features:
+            strategy4_features = None
+    strategy4_kwargs: Dict[str, object] = {}
+    if args.strategy4_mode:
+        strategy4_kwargs["mode"] = args.strategy4_mode
+    if strategy4_features:
+        strategy4_kwargs["feature_cols"] = tuple(strategy4_features)
+    if strategy4_kwargs:
+        strategy_overrides["strategy4_regression"] = strategy4_kwargs
+
     simulation_result: SimulationResult = run_minimal_simulation(
         predictions_root=args.predictions_root,
         risk_column=args.risk_column,
         label_column=args.label_column,
         risk_threshold=args.risk_threshold,
+        strategy_overrides=strategy_overrides or None,
         return_details=need_details,
     )
 

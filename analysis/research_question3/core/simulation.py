@@ -39,11 +39,13 @@ def run_minimal_simulation(
     risk_threshold: float,
     value_column: str = "scheduled_additional_builds",
     return_details: bool = False,
+    strategy_overrides: Optional[Dict[str, Dict[str, object]]] = None,
 ) -> SimulationResult:
     """Execute all registered strategies with the provided threshold."""
 
     schedule_map: Dict[str, pd.DataFrame] = {}
     summary_rows = []
+    overrides: Dict[str, Dict[str, object]] = strategy_overrides or {}
 
     for name, strategy in iter_strategies():
         frame = run_strategy(
@@ -52,6 +54,7 @@ def run_minimal_simulation(
             risk_column=risk_column,
             label_column=label_column,
             threshold=risk_threshold,
+            **overrides.get(name, {}),
         )
         if return_details:
             schedule_map[name] = frame

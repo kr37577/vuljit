@@ -38,19 +38,7 @@ except ImportError:  # pragma: no cover
     from core.io import load_detection_table, load_build_counts, normalise_path, resolve_default
 
 
-try:  # pragma: no cover - relative import when package context is available
-    from ..prediction import settings as prediction_settings  # type: ignore[attr-defined]
-except Exception:  # pragma: no cover - fall back to absolute or skip
-    try:
-        from vuljit.prediction import settings as prediction_settings  # type: ignore[attr-defined]
-    except Exception:  # pragma: no cover
-        try:
-            from prediction import settings as prediction_settings  # type: ignore[attr-defined]
-        except Exception:  # pragma: no cover
-            prediction_settings = None
-            logging.getLogger(__name__).warning(
-                "Warning: could not import prediction settings; some features may be unavailable."
-            )
+from scripts.modeling import settings as prediction_settings
 
 RISK_COLUMN = "predicted_risk_VCCFinder_Coverage"
 
@@ -71,6 +59,16 @@ _STRATEGY4_FALLBACK_FEATURES = (
     "lines_deleted",
 )
 _STRATEGY4_MODEL_VERSION = "linear_regression_v1"
+SIMPLE_REGRESSION_FEATURES = ("line_change_total",)
+_VALID_STRATEGY4_MODES = {"multi", "simple"}
+_PROJECT_STRATEGY_MODES = {"per_project", "cross_project"}
+
+
+def _normalize_project_mode(value: Optional[str], default: str = "per_project") -> str:
+    normalized = (value or default).strip().lower()
+    if normalized not in _PROJECT_STRATEGY_MODES:
+        raise ValueError(f"Unsupported strategy mode: {value!r} (expected one of {_PROJECT_STRATEGY_MODES})")
+    return normalized
 
 
 def _dedupe_preserve_order(items: Iterable[str]) -> List[str]:
@@ -230,8 +228,23 @@ def _resolve_path(default_key: str, value: Optional[str]) -> str:
 
 def _load_detection_table(path: Optional[str] = None) -> pd.DataFrame:
     df = load_detection_table(_resolve_path("phase5.detection_table", path))
-    df["reported_date"] = _ensure_datetime(df.get("reported_date"))
-    df["commit_date"] = _ensure_datetime(df.get("commit_date"))
+
+    def _coalesce_datetime(columns: Sequence[str]) -> pd.Series:
+        series = pd.Series(pd.NaT, index=df.index)
+        for column in columns:
+            if column in df.columns:
+                converted = _ensure_datetime(df[column])
+                series = series.fillna(converted)
+        return series
+
+    reported_columns = (
+        "reported_date_utc",
+    )
+    commit_columns = (
+        "commit_date_utc",
+    )
+    df["reported_date"] = _coalesce_datetime(reported_columns)
+    df["commit_date"] = _coalesce_datetime(commit_columns)
     return df
 
 
@@ -276,8 +289,15 @@ def _load_project_metrics(project: str, data_dir: Optional[str] = None) -> Optio
     if not csv_path.is_file():
         return None
     df = pd.read_csv(csv_path)
-    if "merge_date" not in df.columns:
+    date_column = None
+    for candidate in ("merge_date", "label_date"):
+        if candidate in df.columns:
+            date_column = candidate
+            break
+    if date_column is None:
         return None
+    if date_column != "merge_date":
+        df = df.rename(columns={date_column: "merge_date"})
     df["merge_date_ts"] = pd.to_datetime(df["merge_date"], utc=True, errors="coerce")
     return df
 
@@ -308,6 +328,20 @@ def _prediction_csv_path(project: str, predictions_root: Optional[str]) -> Optio
     alternate = root / f"{project}_daily_aggregated_metrics_with_predictions.csv"
     if alternate.is_file():
         return alternate
+    pattern = f"{project}_daily_aggregated_metrics_with_predictions"
+    suffix = ".csv"
+    search_roots = []
+    project_dir = root / project
+    if project_dir.is_dir():
+        search_roots.append(project_dir)
+    search_roots.append(root)
+    matches: List[Path] = []
+    for base in search_roots:
+        if base.is_dir():
+            matches.extend(base.rglob(f"{pattern}*{suffix}"))
+    if matches:
+        matches = sorted(matches, key=lambda p: (len(p.relative_to(root).parts), str(p)))
+        return matches[0]
     return None
 
 
@@ -319,8 +353,16 @@ def _load_prediction_frame(
     if path is None:
         return None
     df = pd.read_csv(path)
-    if "merge_date" not in df.columns:
+    date_column = None
+    for candidate in ("merge_date", "label_date", "date"):
+        if candidate in df.columns:
+            date_column = candidate
+            break
+    if date_column is None:
         return None
+    if date_column != "merge_date":
+        df = df.rename(columns={date_column: "merge_date"})
+    df.columns = [str(col).strip() for col in df.columns]
     df = df.copy()
     df["merge_date_ts"] = pd.to_datetime(df["merge_date"], utc=True, errors="coerce").dt.normalize()
     df = df.dropna(subset=["merge_date_ts"])
@@ -512,8 +554,14 @@ def _resolve_median_with_fallback(
     project_stats: Dict[str, Dict[str, float]],
     global_stats: Dict[str, float],
     fold_identifier: Optional[str],
+    *,
+    allow_project_fallback: bool = False,
+    allow_global_fallback: bool = False,
+    cross_project_stats: Optional[Dict[str, Dict[str, float]]] = None,
+    project_key: Optional[str] = None,
+    prefer_lopo_only: bool = False,
 ) -> Tuple[Optional[float], Optional[float], Optional[str]]:
-    """Resolve fold median detection days with project and global fallbacks."""
+    """Resolve median detection days with optional preference for LOPO statistics."""
 
     def _extract(stats_dict: Optional[Dict[str, float]]) -> Tuple[Optional[float], Optional[float]]:
         if not isinstance(stats_dict, dict):
@@ -529,22 +577,112 @@ def _resolve_median_with_fallback(
         count_val = float(count_raw) if count_raw is not None and math.isfinite(float(count_raw)) else float("nan")
         return median_val, count_val
 
-    if fold_identifier:
+    if fold_identifier and not prefer_lopo_only:
         fold_stats = project_stats.get(fold_identifier)
         median_val, count_val = _extract(fold_stats)
         if median_val is not None:
             return median_val, count_val, "fold"
-    # フォールバックを削除　2025/10/22 
-    # project_stats_dict = project_stats.get("__overall__")
-    # project_median, project_count = _extract(project_stats_dict)
-    # if project_median is not None:
-    #     return project_median, project_count, "project"
+    if allow_project_fallback and not prefer_lopo_only:
+        project_stats_dict = project_stats.get("__overall__")
+        project_median, project_count = _extract(project_stats_dict)
+        if project_median is not None:
+            return project_median, project_count, "project"
 
-    # global_median, global_count = _extract(global_stats)
-    # if global_median is not None:
-    #     return global_median, global_count, "global"
+    if allow_global_fallback:
+        if project_key and cross_project_stats:
+            lopo_stats = cross_project_stats.get(project_key)
+            lopo_median, lopo_count = _extract(lopo_stats)
+            if lopo_median is not None:
+                return lopo_median, lopo_count, "global_lopo"
+
+        global_median, global_count = _extract(global_stats)
+        if global_median is not None:
+            return global_median, global_count, "global"
 
     return None, None, None
+
+
+def _compute_lopo_project_budgets(project_totals: Dict[str, float]) -> Dict[str, float]:
+    """Return per-project caps derived from the mean demand of all other projects."""
+
+    budgets: Dict[str, float] = {}
+    projects = list(project_totals.keys())
+    if not projects:
+        return budgets
+    for project in projects:
+        others = [
+            float(project_totals.get(other, 0.0))
+            for other in projects
+            if other != project and math.isfinite(project_totals.get(other, float("nan")))
+        ]
+        others = [value for value in others if value > 0]
+        if others:
+            cap = float(sum(others) / len(others))
+        else:
+            cap = float(project_totals.get(project, 0.0) or 0.0)
+        budgets[project] = max(cap, 0.0)
+    return budgets
+
+
+def _allocate_project_budget(contexts: List[Dict[str, Any]], project_budget: Optional[float]) -> None:
+    """Assign integer budgets to each context subject to a project-level cap."""
+
+    if not contexts:
+        return
+
+    if project_budget is None or not math.isfinite(project_budget):
+        for ctx in contexts:
+            ctx["allocated_budget"] = max(int(ctx.get("requested_budget", 0)), 0)
+        return
+
+    budget_int = int(max(round(project_budget), 0))
+    if budget_int <= 0:
+        for ctx in contexts:
+            ctx["allocated_budget"] = 0
+        return
+
+    requested_sum = sum(max(int(ctx.get("requested_budget", 0)), 0) for ctx in contexts)
+    if requested_sum <= 0:
+        for ctx in contexts:
+            ctx["allocated_budget"] = 0
+        return
+    if requested_sum <= budget_int:
+        for ctx in contexts:
+            ctx["allocated_budget"] = max(int(ctx.get("requested_budget", 0)), 0)
+        return
+
+    ratio = budget_int / requested_sum
+    provisional: List[Tuple[Dict[str, Any], float]] = []
+    allocated_total = 0
+    for ctx in contexts:
+        requested = max(int(ctx.get("requested_budget", 0)), 0)
+        scaled = requested * ratio
+        base_value = int(math.floor(scaled))
+        base_value = min(base_value, requested)
+        frac = float(scaled - base_value)
+        ctx["allocated_budget"] = base_value
+        provisional.append((ctx, frac))
+        allocated_total += base_value
+
+    remaining = budget_int - allocated_total
+    if remaining <= 0:
+        return
+    adjustment_order = sorted(
+        provisional,
+        key=lambda item: (
+            -item[1],
+            -item[0].get("requested_budget", 0),
+            item[0].get("order", 0),
+        ),
+    )
+    for ctx, _ in adjustment_order:
+        if remaining <= 0:
+            break
+        requested = max(int(ctx.get("requested_budget", 0)), 0)
+        if ctx["allocated_budget"] >= requested:
+            continue
+        ctx["allocated_budget"] += 1
+        remaining -= 1
 
 
 def _compute_project_fold_statistics(
@@ -555,6 +693,7 @@ def _compute_project_fold_statistics(
     projects: Optional[Sequence[str]] = None,
     walkforward_splits: Optional[int] = None,
     use_recent_training: Optional[bool] = None,
+    compute_lopo: bool = True,
 ) -> Dict[str, Dict[str, Dict[str, float]]]:
     """Compute per-project statistics for each walkforward fold."""
 
@@ -587,7 +726,7 @@ def _compute_project_fold_statistics(
         metadata_projects = set(fold_metadata.keys())
         selected_projects |= metadata_projects
 
-        selected_projects = sorted(selected_projects)
+    selected_projects = sorted(selected_projects)
 
     global_stats = _summarise_duration_series(frame["detection_time_days"])
     global_stats["count"] = float(len(frame))
@@ -597,6 +736,20 @@ def _compute_project_fold_statistics(
     dated = dated.dropna(subset=["commit_ts"])
 
     results: Dict[str, Dict[str, Dict[str, float]]] = {"__global__": global_stats}
+    project_column = frame["project"].to_numpy()
+
+    lopo_stats: Dict[str, Dict[str, float]] = {}
+    if compute_lopo and len(project_column) > 0:
+        unique_projects_for_lopo = selected_projects or sorted(projects_in_data)
+        for project in unique_projects_for_lopo:
+            if project in lopo_stats:
+                continue
+            mask = project_column != project
+            others = frame.loc[mask, "detection_time_days"]
+            stats = _summarise_duration_series(others)
+            stats["count"] = float(len(others))
+            lopo_stats[project] = stats
+        results["__global_exclusive__"] = lopo_stats
     resolved_root = _resolve_path("phase5.predictions_root", predictions_root) if predictions_root is not None else _resolve_path("phase5.predictions_root", None)
 
     metadata_cache: Dict[str, Dict[str, Any]] = {}
@@ -725,6 +878,14 @@ def _prepare_labelled_timeline(
 
     predictions = predictions.copy()
     predictions["_strategy_label"] = label_series
+    if "line_change_total" not in predictions.columns:
+        if {"lines_added", "lines_deleted"}.issubset(predictions.columns):
+            predictions["line_change_total"] = (
+                pd.to_numeric(predictions["lines_added"], errors="coerce").fillna(0)
+                + pd.to_numeric(predictions["lines_deleted"], errors="coerce").fillna(0)
+            )
+        else:
+            predictions["line_change_total"] = np.nan
     merge_cols = ["merge_date_ts", "_strategy_label"]
     risk_present = risk_column in predictions.columns
     if risk_present:
@@ -734,7 +895,10 @@ def _prepare_labelled_timeline(
             if col in predictions.columns and col not in merge_cols:
                 merge_cols.append(col)
     merged = pd.merge(timeline, predictions[merge_cols], on="merge_date_ts", how="left")
-    merged["_strategy_label"] = merged["_strategy_label"].fillna(False).astype(bool)
+    label_series = merged["_strategy_label"]
+    if label_series.dtype == object:
+        label_series = label_series.infer_objects(copy=False)
+    merged["_strategy_label"] = label_series.fillna(False).astype(bool)
     if walkforward_assignments is not None and not walkforward_assignments.empty:
         assignment_cols = [col for col in ("merge_date_ts", "walkforward_fold", "train_window_start", "train_window_end") if col in walkforward_assignments.columns]
         if assignment_cols and "merge_date_ts" in assignment_cols:
@@ -759,6 +923,7 @@ def strategy1_median_schedule(
     *,
     walkforward_splits: Optional[int] = None,
     use_recent_training: Optional[bool] = None,
+    mode: str = "per_project",
 ) -> pd.DataFrame:
     """Trigger median-sized additional builds using walkforward-aware medians.
 
@@ -775,31 +940,44 @@ def strategy1_median_schedule(
     detection_df = detection_df if detection_df is not None else _load_detection_table()
     timelines = timelines if timelines is not None else _load_build_timelines()
     predictions_root = _resolve_path("phase5.predictions_root", predictions_root)
+    mode_normalized = _normalize_project_mode(mode)
+    use_fold = mode_normalized == "per_project"
 
     project_timelines = {project: timeline for project, timeline in (timelines or {}).items() if not timeline.empty}
     if not project_timelines:
         return pd.DataFrame()
 
     metadata_map: Dict[str, Dict[str, Any]] = {}
-    for project in project_timelines:
-        metadata_map[project] = _get_project_walkforward_metadata(
-            project,
-            predictions_root,
-            walkforward_splits=walkforward_splits,
-            use_recent_training=use_recent_training,
-        )
+    if use_fold:
+        for project in project_timelines:
+            metadata_map[project] = _get_project_walkforward_metadata(
+                project,
+                predictions_root,
+                walkforward_splits=walkforward_splits,
+                use_recent_training=use_recent_training,
+            )
 
     stats = _compute_project_fold_statistics(
         detection_df,
-        fold_metadata=metadata_map,
+        fold_metadata=metadata_map if use_fold else None,
         predictions_root=predictions_root,
         projects=list(project_timelines.keys()),
         walkforward_splits=walkforward_splits,
         use_recent_training=use_recent_training,
+        compute_lopo=mode_normalized == "cross_project",
     )
     global_stats = stats.get("__global__", {}) if isinstance(stats.get("__global__"), dict) else {}
+    lopo_stats = stats.get("__global_exclusive__", {}) if isinstance(stats.get("__global_exclusive__"), dict) else {}
+    prefer_lopo_only = mode_normalized == "cross_project"
 
-    def _resolve_median(project_stats: Dict[str, Dict[str, float]], fold: Optional[str]) -> Tuple[Optional[float], Optional[str]]:
+    def _resolve_median(
+        project_stats: Dict[str, Dict[str, float]],
+        fold: Optional[str],
+        project_key: Optional[str],
+        *,
+        allow_project_fallback: bool,
+        allow_global_fallback: bool,
+    ) -> Tuple[Optional[float], Optional[str]]:
         # Prefer fold medians and fall back only when the training window lacks samples;
         # NaNs propagate until a stable (>=0) fallback is available to avoid over-scheduling.
         def _coerce_median(stats_dict: Optional[Dict[str, float]]) -> Optional[float]:
@@ -813,26 +991,39 @@ def strategy1_median_schedule(
                 return None
             return max(value, 0.0)
 
-        fold_stats = project_stats.get(fold) if fold else None
-        fold_median_days = _coerce_median(fold_stats)
-        if fold_median_days is not None:
-            return fold_median_days, "fold"
-        
-        # TODO：フォールバックを無効化したがら、将来的に再検討する可能性あり　2025-10-16
-        # project_stats_dict = project_stats.get("__overall__")
-        # project_median_days = _coerce_median(project_stats_dict)
-        # if project_median_days is not None:
-        #     return project_median_days, "project"
+        if not prefer_lopo_only:
+            fold_stats = project_stats.get(fold) if fold else None
+            fold_median_days = _coerce_median(fold_stats)
+            if fold_median_days is not None:
+                return fold_median_days, "fold"
 
-        # global_median_days = _coerce_median(global_stats)
-        # if global_median_days is not None:
-        #     return global_median_days, "global"
+        if allow_project_fallback and not prefer_lopo_only:
+            project_stats_dict = project_stats.get("__overall__")
+            project_median_days = _coerce_median(project_stats_dict)
+            if project_median_days is not None:
+                return project_median_days, "project"
+
+        if allow_global_fallback:
+            if project_key and project_key in lopo_stats:
+                lopo_median_days = _coerce_median(lopo_stats.get(project_key))
+                if lopo_median_days is not None:
+                    return lopo_median_days, "global_lopo"
+
+        if allow_global_fallback:
+            if project_key and project_key in lopo_stats:
+                lopo_median_days = _coerce_median(lopo_stats.get(project_key))
+                if lopo_median_days is not None:
+                    return lopo_median_days, "global_lopo"
+
+            global_median_days = _coerce_median(global_stats)
+            if global_median_days is not None:
+                return global_median_days, "global"
 
         return None, None
 
     records: List[Dict[str, object]] = []
     for project, timeline in project_timelines.items():
-        metadata = metadata_map.get(project, {})
+        metadata = metadata_map.get(project, {}) if use_fold else {}
         assignments = metadata.get("assignments") if isinstance(metadata, dict) else None
 
         merged, label_name, threshold_used, derived_from_threshold = _prepare_labelled_timeline(
@@ -842,37 +1033,46 @@ def strategy1_median_schedule(
             risk_column,
             label_column,
             threshold,
-            walkforward_assignments=assignments if isinstance(assignments, pd.DataFrame) else None,
+            walkforward_assignments=assignments if isinstance(assignments, pd.DataFrame) else None if use_fold else None,
         )
         if merged is None:
             continue
-        positive = merged["_strategy_label"]
-        if not positive.any():
+        merged = merged.copy()
+        if use_fold:
+            if "walkforward_fold" not in merged.columns:
+                continue
+            merged = merged[merged["walkforward_fold"].notna()].copy()
+            if merged.empty:
+                continue
+        positive_mask = merged["_strategy_label"].fillna(False)
+        positive = merged.loc[positive_mask].copy()
+        if positive.empty:
             continue
 
         project_stats = stats.get(project, {}) if isinstance(stats.get(project), dict) else {}
-        for _, row in merged.loc[positive].iterrows():
-            fold_id = row.get("walkforward_fold")
+        allow_project_fallback = True
+        allow_global_fallback = True
+
+        for _, row in positive.iterrows():
+            fold_id = row.get("walkforward_fold") if use_fold else None
             if pd.isna(fold_id):
                 fold_id = None
-            fold_identifier: Optional[str]
-            if fold_id is None:
-                fold_identifier = None
-            else:
-                fold_identifier = str(fold_id)
+            fold_identifier = None if fold_id is None else str(fold_id)
 
-            resolved_median_days, median_source = _resolve_median(project_stats, fold_identifier)
+            resolved_median_days, median_source = _resolve_median(
+                project_stats,
+                fold_identifier,
+                project,
+                allow_project_fallback=allow_project_fallback,
+                allow_global_fallback=allow_global_fallback,
+            )
             if resolved_median_days is None:
                 continue
 
             builds_per_day = float(row.get("builds_per_day", 0.0))
             if not math.isfinite(builds_per_day) or builds_per_day <= 0:
                 continue
-            scheduled = (
-                int(math.ceil(resolved_median_days * builds_per_day))
-                # if builds_per_day > 0
-                # else int(math.ceil(resolved_median_days))
-            )
+            scheduled = int(math.ceil(resolved_median_days * builds_per_day))
             if scheduled <= 0:
                 continue
 
@@ -892,10 +1092,11 @@ def strategy1_median_schedule(
                 "median_detection_days": resolved_median_days,
                 "scheduled_additional_builds": scheduled,
                 "label_source": label_name,
-                "walkforward_fold": fold_identifier,
-                "train_window_start": train_start,
-                "train_window_end": train_end,
+                "walkforward_fold": fold_identifier if use_fold else None,
+                "train_window_start": train_start if use_fold else None,
+                "train_window_end": train_end if use_fold else None,
                 "median_source": median_source,
+                "strategy_mode": mode_normalized,
             }
             if derived_from_threshold:
                 record["label_threshold"] = threshold_used
@@ -916,37 +1117,51 @@ def strategy2_random_within_median_range(
     *,
     walkforward_splits: Optional[int] = None,
     use_recent_training: Optional[bool] = None,
+    mode: str = "per_project",
 ) -> pd.DataFrame:
     """Schedule additional builds using fold-aware interquartile sampling."""
 
     detection_df = detection_df if detection_df is not None else _load_detection_table()
     timelines = timelines if timelines is not None else _load_build_timelines()
     predictions_root = _resolve_path("phase5.predictions_root", predictions_root)
+    mode_normalized = _normalize_project_mode(mode)
+    use_fold = mode_normalized == "per_project"
 
     project_timelines = {project: timeline for project, timeline in (timelines or {}).items() if not timeline.empty}
     if not project_timelines:
         return pd.DataFrame()
 
     metadata_map: Dict[str, Dict[str, Any]] = {}
-    for project in project_timelines:
-        metadata_map[project] = _get_project_walkforward_metadata(
-            project,
-            predictions_root,
-            walkforward_splits=walkforward_splits,
-            use_recent_training=use_recent_training,
-        )
+    if use_fold:
+        for project in project_timelines:
+            metadata_map[project] = _get_project_walkforward_metadata(
+                project,
+                predictions_root,
+                walkforward_splits=walkforward_splits,
+                use_recent_training=use_recent_training,
+            )
 
     stats = _compute_project_fold_statistics(
         detection_df,
-        fold_metadata=metadata_map,
+        fold_metadata=metadata_map if use_fold else None,
         predictions_root=predictions_root,
         projects=list(project_timelines.keys()),
         walkforward_splits=walkforward_splits,
         use_recent_training=use_recent_training,
+        compute_lopo=mode_normalized == "cross_project",
     )
     global_stats = stats.get("__global__", {}) if isinstance(stats.get("__global__"), dict) else {}
+    lopo_stats = stats.get("__global_exclusive__", {}) if isinstance(stats.get("__global_exclusive__"), dict) else {}
+    prefer_lopo_only = mode_normalized == "cross_project"
 
-    def _resolve_quartiles(project_stats: Dict[str, Dict[str, float]], fold: Optional[str]) -> Tuple[Optional[float], Optional[float], Optional[str]]:
+    def _resolve_quartiles(
+        project_stats: Dict[str, Dict[str, float]],
+        fold: Optional[str],
+        project_key: Optional[str],
+        *,
+        allow_project_fallback: bool,
+        allow_global_fallback: bool,
+    ) -> Tuple[Optional[float], Optional[float], Optional[str]]:
         # Resolve interquartile range in fold -> project -> global order, skipping folds with
         # sparse training data rather than synthesising ranges from incomplete statistics.
         def _coerce_quartiles(stats_dict: Optional[Dict[str, float]]) -> Tuple[Optional[float], Optional[float]]:
@@ -964,20 +1179,27 @@ def strategy2_random_within_median_range(
             q3_value = max(q3_value, q1_value)
             return q1_value, q3_value
 
-        fold_stats = project_stats.get(fold) if fold else None
-        fold_q1_days, fold_q3_days = _coerce_quartiles(fold_stats)
-        if fold_q1_days is not None and fold_q3_days is not None:
-            return fold_q1_days, fold_q3_days, "fold"
-        
-        # TODO：フォールバックを無効化したがら、将来的に再検討する可能性あり　2025-10-16
-        # project_stats_dict = project_stats.get("__overall__")
-        # project_q1_days, project_q3_days = _coerce_quartiles(project_stats_dict)
-        # if project_q1_days is not None and project_q3_days is not None:
-        #     return project_q1_days, project_q3_days, "project"
+        if not prefer_lopo_only:
+            fold_stats = project_stats.get(fold) if fold else None
+            fold_q1_days, fold_q3_days = _coerce_quartiles(fold_stats)
+            if fold_q1_days is not None and fold_q3_days is not None:
+                return fold_q1_days, fold_q3_days, "fold"
 
-        # global_q1_days, global_q3_days = _coerce_quartiles(global_stats)
-        # if global_q1_days is not None and global_q3_days is not None:
-        #     return global_q1_days, global_q3_days, "global"
+        if allow_project_fallback and not prefer_lopo_only:
+            project_stats_dict = project_stats.get("__overall__")
+            project_q1_days, project_q3_days = _coerce_quartiles(project_stats_dict)
+            if project_q1_days is not None and project_q3_days is not None:
+                return project_q1_days, project_q3_days, "project"
+
+        if allow_global_fallback:
+            if project_key and project_key in lopo_stats:
+                lopo_q1_days, lopo_q3_days = _coerce_quartiles(lopo_stats.get(project_key))
+                if lopo_q1_days is not None and lopo_q3_days is not None:
+                    return lopo_q1_days, lopo_q3_days, "global_lopo"
+
+            global_q1_days, global_q3_days = _coerce_quartiles(global_stats)
+            if global_q1_days is not None and global_q3_days is not None:
+                return global_q1_days, global_q3_days, "global"
 
         return None, None, None
 
@@ -991,7 +1213,7 @@ def strategy2_random_within_median_range(
 
     records: List[Dict[str, object]] = []
     for project, timeline in project_timelines.items():
-        metadata = metadata_map.get(project, {})
+        metadata = metadata_map.get(project, {}) if use_fold else {}
         assignments = metadata.get("assignments") if isinstance(metadata, dict) else None
 
         labelled, label_name, threshold_used, derived_from_threshold = _prepare_labelled_timeline(
@@ -1001,23 +1223,43 @@ def strategy2_random_within_median_range(
             risk_column,
             label_column,
             threshold,
-            walkforward_assignments=assignments if isinstance(assignments, pd.DataFrame) else None,
+            walkforward_assignments=assignments if isinstance(assignments, pd.DataFrame) else None if use_fold else None,
         )
         if labelled is None:
             continue
 
-        positive = labelled["_strategy_label"]
+        labelled = labelled.copy()
+        if use_fold:
+            if "walkforward_fold" not in labelled.columns:
+                continue
+            labelled = labelled[labelled["walkforward_fold"].notna()].copy()
+            if labelled.empty:
+                continue
+        positive = labelled["_strategy_label"].fillna(False)
         if not positive.any():
             continue
 
+        positive_rows = labelled.loc[positive].copy()
+        if positive_rows.empty:
+            continue
+
         project_stats = stats.get(project, {}) if isinstance(stats.get(project), dict) else {}
-        for _, row in labelled.loc[positive].iterrows():
-            fold_id = row.get("walkforward_fold")
+        allow_project_fallback = True
+        allow_global_fallback = True
+
+        for _, row in positive_rows.iterrows():
+            fold_id = row.get("walkforward_fold") if use_fold else None
             if pd.isna(fold_id):
                 fold_id = None
             fold_identifier: Optional[str] = None if fold_id is None else str(fold_id)
 
-            q1_days, q3_days, quartile_source = _resolve_quartiles(project_stats, fold_identifier)
+            q1_days, q3_days, quartile_source = _resolve_quartiles(
+                project_stats,
+                fold_identifier,
+                project,
+                allow_project_fallback=allow_project_fallback,
+                allow_global_fallback=allow_global_fallback,
+            )
             if q1_days is None or q3_days is None:
                 continue
 
@@ -1047,10 +1289,11 @@ def strategy2_random_within_median_range(
                 "sampled_offset_days": sampled_offset,
                 "scheduled_additional_builds": scheduled_builds,
                 "label_source": label_name,
-                "walkforward_fold": fold_identifier,
-                "train_window_start": train_start,
-                "train_window_end": train_end,
+                "walkforward_fold": fold_identifier if use_fold else None,
+                "train_window_start": train_start if use_fold else None,
+                "train_window_end": train_end if use_fold else None,
                 "quartile_source": quartile_source,
+                "strategy_mode": mode_normalized,
             }
             if derived_from_threshold:
                 record["label_threshold"] = threshold_used
@@ -1059,6 +1302,7 @@ def strategy2_random_within_median_range(
             records.append(record)
 
     return pd.DataFrame(records)
+
 
 def strategy3_line_change_proportional(
     detection_df: Optional[pd.DataFrame] = None,
@@ -1074,6 +1318,8 @@ def strategy3_line_change_proportional(
     *,
     walkforward_splits: Optional[int] = None,
     use_recent_training: Optional[bool] = None,
+    mode: str = "per_project",
+    global_budget: Optional[float] = None,
 ) -> pd.DataFrame:
     """Adjust additional build frequency proportional to daily line churn, gated by JIT labels."""
 
@@ -1081,30 +1327,41 @@ def strategy3_line_change_proportional(
     timelines = timelines if timelines is not None else _load_build_timelines()
     data_dir = _resolve_path("timeline.data_dir", data_dir)
     predictions_root = _resolve_path("phase5.predictions_root", predictions_root)
+    mode_normalized = _normalize_project_mode(mode)
+    use_fold = mode_normalized == "per_project"
 
-    rows: List[Dict[str, object]] = []
+    rounding_mode_normalized = (rounding_mode or "ceil").strip().lower()
+    if rounding_mode_normalized not in {"ceil", "floor", "round"}:
+        raise ValueError(f"Unsupported rounding_mode: {rounding_mode!r}")
+
+    project_payloads: Dict[str, Dict[str, Any]] = {}
+    project_totals: Dict[str, float] = {}
     project_timelines = {project: timeline for project, timeline in (timelines or {}).items() if not timeline.empty}
     if not project_timelines:
         return pd.DataFrame()
 
     metadata_map: Dict[str, Dict[str, Any]] = {}
-    for project in project_timelines:
-        metadata_map[project] = _get_project_walkforward_metadata(
-            project,
-            predictions_root,
-            walkforward_splits=walkforward_splits,
-            use_recent_training=use_recent_training,
-        )
+    if use_fold:
+        for project in project_timelines:
+            metadata_map[project] = _get_project_walkforward_metadata(
+                project,
+                predictions_root,
+                walkforward_splits=walkforward_splits,
+                use_recent_training=use_recent_training,
+            )
 
     stats = _compute_project_fold_statistics(
         detection_df,
-        fold_metadata=metadata_map,
+        fold_metadata=metadata_map if use_fold else None,
         predictions_root=predictions_root,
         projects=list(project_timelines.keys()),
         walkforward_splits=walkforward_splits,
         use_recent_training=use_recent_training,
+        compute_lopo=mode_normalized == "cross_project",
     )
     global_stats = stats.get("__global__", {}) if isinstance(stats.get("__global__"), dict) else {}
+    lopo_stats = stats.get("__global_exclusive__", {}) if isinstance(stats.get("__global_exclusive__"), dict) else {}
+    prefer_lopo_only = mode_normalized == "cross_project"
 
     for project, timeline in project_timelines.items():
         if timeline.empty:
@@ -1112,7 +1369,7 @@ def strategy3_line_change_proportional(
         metrics_df = _prepare_line_change_metrics(project, data_dir)
         if metrics_df is None:
             continue
-        metadata = metadata_map.get(project, {})
+        metadata = metadata_map.get(project, {}) if use_fold else {}
         assignments = metadata.get("assignments") if isinstance(metadata, dict) else None
         labelled, label_name, threshold_used, derived_from_threshold = _prepare_labelled_timeline(
             project,
@@ -1121,7 +1378,7 @@ def strategy3_line_change_proportional(
             risk_column,
             label_column,
             threshold,
-            walkforward_assignments=assignments if isinstance(assignments, pd.DataFrame) else None,
+            walkforward_assignments=assignments if isinstance(assignments, pd.DataFrame) else None if use_fold else None,
         )
         if labelled is None:
             continue
@@ -1131,15 +1388,13 @@ def strategy3_line_change_proportional(
             on="merge_date_ts",
             how="left",
         ).reset_index(drop=True)
+        if not use_fold and "walkforward_fold" not in merged.columns:
+            merged["walkforward_fold"] = None
         positive_mask = merged["_strategy_label"].fillna(False)
         if not positive_mask.any():
             continue
         positive = merged.loc[positive_mask].copy()
         project_stats = stats.get(project, {}) if isinstance(stats.get(project), dict) else {}
-
-        rounding_mode_normalized = (rounding_mode or "ceil").strip().lower()
-        if rounding_mode_normalized not in {"ceil", "floor", "round"}:
-            raise ValueError(f"Unsupported rounding_mode: {rounding_mode!r}")
 
         line_change_series = merged["line_change_total"].fillna(0).astype(float)
 
@@ -1151,12 +1406,27 @@ def strategy3_line_change_proportional(
         else:
             commit_count_series = pd.Series(np.nan, index=merged.index, dtype=float)
 
-        allocation_map: Dict[int, Dict[str, object]] = {}
+        fold_contexts: List[Dict[str, Any]] = []
+        context_order = 0
         if not positive.empty:
-            fold_grouped = positive.groupby("walkforward_fold", dropna=False)
+            if use_fold:
+                fold_grouped = positive.groupby("walkforward_fold", dropna=False)
+            else:
+                fold_grouped = [(None, positive)]
+            allow_project_fallback = True
+            allow_global_fallback = True
             for fold_value, fold_rows in fold_grouped:
                 fold_identifier = None if (pd.isna(fold_value)) else str(fold_value)
-                median_days, sample_count, source = _resolve_median_with_fallback(project_stats, global_stats, fold_identifier)
+                median_days, sample_count, source = _resolve_median_with_fallback(
+                    project_stats,
+                    global_stats,
+                    fold_identifier,
+                    allow_project_fallback=allow_project_fallback,
+                    allow_global_fallback=allow_global_fallback,
+                    cross_project_stats=lopo_stats,
+                    project_key=project,
+                    prefer_lopo_only=prefer_lopo_only,
+                )
                 if median_days is None:
                     continue
                 builds_series = pd.to_numeric(fold_rows.get("builds_per_day"), errors="coerce").astype(float)
@@ -1210,67 +1480,147 @@ def strategy3_line_change_proportional(
                 else:
                     share_map = {idx: share_map[idx] / share_total for idx in share_map}
 
-                expected_map = {idx: float(fold_budget_target * share_map[idx]) for idx in share_map}
-
-                rounded_map: Dict[int, int] = {}
-                for idx, value in expected_map.items():
-                    if rounding_mode_normalized == "ceil":
-                        rounded_val = int(math.ceil(value - 1e-9))
-                    elif rounding_mode_normalized == "floor":
-                        rounded_val = int(math.floor(value + 1e-9))
-                    else:  # "round"
-                        rounded_val = int(round(value))
-                    rounded_map[idx] = max(rounded_val, 0)
-
-                final_map = dict(rounded_map)
-                overflow_flag = False
-                if rounding_mode_normalized in {"ceil", "round"}:
-                    rounded_total = int(sum(final_map.values()))
-                    if rounded_total > fold_budget_target and fold_budget_target >= 0:
-                        overflow_flag = True
-                        excess = rounded_total - fold_budget_target
-                        adjustment_order = sorted(indices, key=lambda idx: (share_map[idx], expected_map[idx], idx))
-                        while excess > 0 and adjustment_order:
-                            progress = False
-                            for idx in adjustment_order:
-                                if excess <= 0:
-                                    break
-                                if final_map[idx] <= 0:
-                                    continue
-                                final_map[idx] -= 1
-                                excess -= 1
-                                progress = True
-                                if excess <= 0:
-                                    break
-                            if not progress:
-                                break
-                        if excess > 0 and adjustment_order:
-                            idx = adjustment_order[0]
-                            final_map[idx] = max(final_map[idx] - excess, 0)
-
-                for idx in indices:
-                    allocation_map[idx] = {
-                        "fold_budget": fold_budget_target,
-                        "fold_budget_continuous": fold_budget_continuous,
-                        "fold_budget_source": source,
-                        "fold_positive_days": positive_count,
-                        "fold_sample_count": sample_count_val,
+                fold_contexts.append(
+                    {
                         "fold_identifier": fold_identifier,
-                        "fold_median_detection_days": median_days,
-                        "line_churn_baseline": baseline,
-                        "baseline_zero_fallback": baseline_zero,
-                        "line_weight_raw": raw_weights.get(idx, 0.0),
-                        "line_weight_share": share_map.get(idx, 0.0),
-                        "expected_raw": expected_map.get(idx, 0.0),
-                        "rounded_value": rounded_map.get(idx, 0),
-                        "final_scheduled": final_map.get(idx, 0),
-                        "rounding_mode_used": rounding_mode_normalized,
-                        "fold_overflow_used": overflow_flag,
+                        "median_days": median_days,
+                        "sample_count": sample_count_val,
+                        "source": source,
+                        "fold_budget_continuous": fold_budget_continuous,
+                        "requested_budget": fold_budget_target,
+                        "indices": indices,
+                        "share_map": share_map,
+                        "raw_weights": raw_weights,
+                        "baseline": baseline,
+                        "baseline_zero": baseline_zero,
+                        "positive_count": positive_count,
+                        "strategy_mode": mode_normalized,
+                        "order": context_order,
                     }
+                )
+                context_order += 1
+
+        if not fold_contexts:
+            continue
+
+        project_payloads[project] = {
+            "positive_rows": positive,
+            "line_change_series": line_change_series,
+            "commit_count_series": commit_count_series,
+            "fold_contexts": fold_contexts,
+            "label_name": label_name,
+            "threshold_used": threshold_used,
+            "derived_from_threshold": derived_from_threshold,
+        }
+        project_totals[project] = sum(max(float(ctx.get("fold_budget_continuous", 0.0)), 0.0) for ctx in fold_contexts)
+
+    if not project_payloads:
+        return pd.DataFrame()
+
+    lopo_caps = _compute_lopo_project_budgets(project_totals) if mode_normalized == "cross_project" else {}
+    rows: List[Dict[str, object]] = []
+
+    for project, payload in project_payloads.items():
+        fold_contexts = payload["fold_contexts"]
+        if not fold_contexts:
+            continue
+        requested_total = project_totals.get(project, 0.0)
+        if requested_total <= 0:
+            continue
+
+        if mode_normalized == "cross_project":
+            lopo_cap = lopo_caps.get(project, requested_total)
+            resolved_cap = min(requested_total, lopo_cap)
+            if global_budget is not None:
+                resolved_cap = min(resolved_cap, float(global_budget))
+            budget_source = "lopo_average"
+        else:
+            resolved_cap = requested_total
+            budget_source = "project_continuous"
+
+        project_budget_float = max(resolved_cap, 0.0)
+        _allocate_project_budget(fold_contexts, project_budget_float)
+
+        allocation_map: Dict[int, Dict[str, object]] = {}
+        for ctx in fold_contexts:
+            fold_budget_target = int(max(ctx.get("allocated_budget", 0), 0))
+            if fold_budget_target <= 0:
+                continue
+            indices = ctx["indices"]
+            share_map = ctx["share_map"]
+            expected_map = {idx: float(fold_budget_target * share_map.get(idx, 0.0)) for idx in share_map}
+
+            rounded_map: Dict[int, int] = {}
+            for idx, value in expected_map.items():
+                if rounding_mode_normalized == "ceil":
+                    rounded_val = int(math.ceil(value - 1e-9))
+                elif rounding_mode_normalized == "floor":
+                    rounded_val = int(math.floor(value + 1e-9))
+                else:  # "round"
+                    rounded_val = int(round(value))
+                rounded_map[idx] = max(rounded_val, 0)
+
+            final_map = dict(rounded_map)
+            overflow_flag = False
+            if rounding_mode_normalized in {"ceil", "round"}:
+                rounded_total = int(sum(final_map.values()))
+                if rounded_total > fold_budget_target and fold_budget_target >= 0:
+                    overflow_flag = True
+                    excess = rounded_total - fold_budget_target
+                    adjustment_order = sorted(indices, key=lambda idx: (share_map[idx], expected_map[idx], idx))
+                    while excess > 0 and adjustment_order:
+                        progress = False
+                        for idx in adjustment_order:
+                            if excess <= 0:
+                                break
+                            if final_map[idx] <= 0:
+                                continue
+                            final_map[idx] -= 1
+                            excess -= 1
+                            progress = True
+                            if excess <= 0:
+                                break
+                        if not progress:
+                            break
+                    if excess > 0 and adjustment_order:
+                        idx = adjustment_order[0]
+                        final_map[idx] = max(final_map[idx] - excess, 0)
+
+            for idx in indices:
+                allocation_map[idx] = {
+                    "fold_budget": fold_budget_target,
+                    "fold_budget_continuous": ctx["fold_budget_continuous"],
+                    "fold_budget_source": ctx["source"],
+                    "fold_positive_days": ctx["positive_count"],
+                    "fold_sample_count": ctx["sample_count"],
+                    "fold_identifier": ctx["fold_identifier"],
+                    "fold_median_detection_days": ctx["median_days"],
+                    "line_churn_baseline": ctx["baseline"],
+                    "baseline_zero_fallback": ctx["baseline_zero"],
+                    "line_weight_raw": ctx["raw_weights"].get(idx, 0.0),
+                    "line_weight_share": share_map.get(idx, 0.0),
+                    "expected_raw": expected_map.get(idx, 0.0),
+                    "rounded_value": rounded_map.get(idx, 0),
+                    "final_scheduled": final_map.get(idx, 0),
+                    "rounding_mode_used": rounding_mode_normalized,
+                    "fold_overflow_used": overflow_flag,
+                    "strategy_mode": ctx["strategy_mode"],
+                    "project_budget_requested": float(requested_total),
+                    "project_budget_cap": float(project_budget_float),
+                    "project_budget_source": budget_source,
+                }
+
         if not allocation_map:
             continue
 
-        for idx, row in merged.loc[positive_mask].iterrows():
+        positive_rows = payload["positive_rows"]
+        line_change_series = payload["line_change_series"]
+        commit_count_series = payload["commit_count_series"]
+        label_name = payload["label_name"]
+        threshold_used = payload["threshold_used"]
+        derived_from_threshold = payload["derived_from_threshold"]
+
+        for idx, row in positive_rows.iterrows():
             idx_int = int(idx)
             allocation = allocation_map.get(idx_int)
             if allocation is None:
@@ -1278,7 +1628,8 @@ def strategy3_line_change_proportional(
             scheduled = int(max(allocation.get("final_scheduled", 0), 0))
             if scheduled <= 0:
                 continue
-            line_change_value = float(line_change_series.loc[idx])
+            line_change_value = float(line_change_series.loc[idx]) if idx in line_change_series.index else float("nan")
+            commit_value = float(commit_count_series.loc[idx]) if idx in commit_count_series.index else float("nan")
             record: Dict[str, object] = {
                 "project": project,
                 "strategy": "line_change_proportional",
@@ -1303,22 +1654,16 @@ def strategy3_line_change_proportional(
                 "fold_sample_count": float(allocation.get("fold_sample_count", float("nan"))),
                 "fold_median_detection_days": float(allocation.get("fold_median_detection_days", float("nan"))),
                 "scheduled_additional_builds": scheduled,
-                "daily_commit_count": float(commit_count_series.loc[idx]) if not pd.isna(commit_count_series.loc[idx]) else np.nan,
+                "daily_commit_count": commit_value if not pd.isna(commit_value) else np.nan,
+                "strategy_mode": mode_normalized,
                 "label_source": label_name,
+                "walkforward_fold": row.get("walkforward_fold") if use_fold else None,
+                "train_window_start": row.get("train_window_start") if use_fold else None,
+                "train_window_end": row.get("train_window_end") if use_fold else None,
+                "project_budget_requested": allocation.get("project_budget_requested"),
+                "project_budget_cap": allocation.get("project_budget_cap"),
+                "project_budget_source": allocation.get("project_budget_source"),
             }
-            fold_value = row.get("walkforward_fold")
-            if pd.isna(fold_value):
-                record["walkforward_fold"] = None
-            else:
-                record["walkforward_fold"] = str(fold_value)
-            train_start = row.get("train_window_start")
-            train_end = row.get("train_window_end")
-            if pd.isna(train_start):
-                train_start = None
-            if pd.isna(train_end):
-                train_end = None
-            record["train_window_start"] = train_start
-            record["train_window_end"] = train_end
             if derived_from_threshold:
                 record["label_threshold"] = threshold_used
             if risk_column in row and not pd.isna(row.get(risk_column)):
@@ -1340,8 +1685,10 @@ def _build_regression_dataset(
     *,
     walkforward_splits: Optional[int] = None,
     use_recent_training: Optional[bool] = None,
+    required_feature_columns: Optional[Sequence[str]] = None,
 ) -> pd.DataFrame:
     feature_cols = tuple(feature_cols)
+    required_feature_columns = tuple(required_feature_columns or ())
     if LOGGER.isEnabledFor(logging.DEBUG):
         LOGGER.debug(
             "Strategy4 dataset build: features=%s (count=%d)",
@@ -1353,7 +1700,7 @@ def _build_regression_dataset(
     detection_lookup: Dict[str, Dict[pd.Timestamp, List[float]]] = {}
     for _, record in detection_df.iterrows():
         project = (record.get("project") or "").strip()
-        commit_ts = record.get("commit_date")
+        commit_ts = record.get("commit_date_utc")
         detection_time = record.get("detection_time_days")
         if not project or pd.isna(commit_ts) or pd.isna(detection_time):
             continue
@@ -1434,6 +1781,15 @@ def _build_regression_dataset(
                     project,
                 )
             continue
+
+        if required_feature_columns:
+            missing_required = [col for col in required_feature_columns if col not in labelled.columns]
+            if missing_required:
+                missing_joined = ", ".join(sorted(set(missing_required)))
+                raise ValueError(
+                    f"Required Strategy4 features ({missing_joined}) are missing for project {project}. "
+                    "Ensure the aggregated metrics/prediction CSVs include these columns before running simple mode."
+                )
 
         detection_map = detection_lookup.get(project, {})
         for _, row in labelled.iterrows():
@@ -1650,6 +2006,7 @@ def strategy4_cross_project_regression(
     label_column: Optional[str] = None,
     threshold: float = 0.5,
     feature_cols: Optional[Sequence[str]] = None,
+    mode: str = "multi",
     evaluation_mode: str = "leave_one_project_out",
     test_fraction: float = 0.2,
     random_seed: int = 42,
@@ -1664,8 +2021,26 @@ def strategy4_cross_project_regression(
     timelines = timelines if timelines is not None else _load_build_timelines()
     build_counts_df = _load_build_counts(build_counts_path)
     predictions_root = _resolve_path("phase5.predictions_root", predictions_root)
-    resolved_features = tuple(feature_cols) if feature_cols is not None else tuple(_default_strategy4_features())
+    normalized_mode = (mode or "multi").strip().lower()
+    if normalized_mode not in _VALID_STRATEGY4_MODES:
+        raise ValueError(f"Unsupported Strategy4 mode: {mode!r} (expected one of {_VALID_STRATEGY4_MODES})")
+    if feature_cols is not None:
+        resolved_features = tuple(_dedupe_preserve_order(str(col).strip() for col in feature_cols if str(col).strip()))
+    elif normalized_mode == "simple":
+        resolved_features = SIMPLE_REGRESSION_FEATURES
+    else:
+        resolved_features = tuple(_default_strategy4_features())
+    if not resolved_features:
+        raise ValueError("Strategy4 requires at least one feature column; provide --strategy4-feature or ensure prediction settings export features.")
+    required_feature_columns: Tuple[str, ...] = tuple(resolved_features) if normalized_mode == "simple" else tuple()
     feature_sig = _feature_signature(resolved_features)
+    if LOGGER.isEnabledFor(logging.INFO):
+        LOGGER.info(
+            "Strategy4 regression mode=%s, features=%d, signature=%s",
+            normalized_mode,
+            len(resolved_features),
+            feature_sig[:12],
+        )
     resolved_walkforward_splits, resolved_use_recent = _resolve_walkforward_config(
         walkforward_splits,
         use_recent_training,
@@ -1687,6 +2062,7 @@ def strategy4_cross_project_regression(
         threshold,
         walkforward_splits=walkforward_splits,
         use_recent_training=use_recent_training,
+        required_feature_columns=required_feature_columns,
     )
     if dataset.empty:
         raise ValueError("Regression dataset is empty; ensure input CSV files are prepared.")
@@ -1755,6 +2131,8 @@ def strategy4_cross_project_regression(
     metrics["use_hpo"] = bool(getattr(prediction_settings, "USE_HYPERPARAM_OPTIMIZATION", False)) if prediction_settings is not None else False
     metrics["walkforward_splits"] = resolved_walkforward_splits
     metrics["use_recent_training"] = resolved_use_recent
+    metrics["regression_mode"] = normalized_mode
+    metrics["resolved_feature_columns"] = list(resolved_features)
     metrics.setdefault("train_mae", float(np.mean(np.abs(model.predict(dataset[list(resolved_features)]) - dataset["observed_additional_builds"].to_numpy()))))
     metrics.setdefault("train_projects", len(dataset["project"].unique()))
 
@@ -1766,6 +2144,7 @@ def strategy4_cross_project_regression(
             "coefficients": model.coefficients,
             "feature_order": list(resolved_features),
             "feature_signature": feature_sig,
+            "mode": normalized_mode,
         },
         "settings": {
             "random_state": metrics["random_state_used"],
@@ -1823,6 +2202,7 @@ def strategy4_cross_project_regression(
             record[risk_column] = float(row.get(risk_column))
         record["model_version"] = _STRATEGY4_MODEL_VERSION
         record["feature_signature"] = feature_sig
+        record["regression_mode"] = normalized_mode
         records.append(record)
 
     schedule_df = pd.DataFrame(records)

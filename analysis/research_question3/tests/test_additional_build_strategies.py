@@ -10,7 +10,7 @@ import sys
 import types
 from pathlib import Path
 import numpy as np
-from typing import Optional
+from typing import Dict, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE_DIR = ROOT / "core"
@@ -156,6 +156,7 @@ def _run_strategy3_with_mocks(
     metrics: pd.DataFrame,
     stats: dict[str, dict[str, dict[str, float]]],
     rounding_kwargs: Optional[dict[str, object]] = None,
+    strategy_kwargs: Optional[dict[str, object]] = None,
 ) -> pd.DataFrame:
     detection_df = _sample_detection_table()
 
@@ -183,6 +184,8 @@ def _run_strategy3_with_mocks(
     monkeypatch.setattr(strategies, "_get_project_walkforward_metadata", fake_walkforward_metadata)
 
     kwargs = dict(rounding_kwargs or {})
+    if strategy_kwargs:
+        kwargs.update(strategy_kwargs)
     return strategies.strategy3_line_change_proportional(
         detection_df=detection_df,
         timelines={"alpha": timeline},
@@ -462,6 +465,31 @@ def test_strategy3_rounding_mode_floor(monkeypatch: pytest.MonkeyPatch, tmp_path
     assert sum(scheduled_map.values()) < result["fold_budget"].iloc[0]
 
 
+def test_strategy3_cross_project_uses_global_budget(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    timeline = _one_day_timeline()
+    labelled = _strategy3_labelled_frame().drop(columns=["walkforward_fold"])
+    metrics = _strategy3_metrics_frame()
+
+    stats = {
+        "__global__": {"median": 5.0, "count": 20.0},
+        "__global_exclusive__": {"alpha": {"median": 6.0, "count": 15.0}},
+        "alpha": {"__overall__": {"median": float("nan"), "count": float("nan")}},
+    }
+
+    result = _run_strategy3_with_mocks(
+        monkeypatch,
+        tmp_path,
+        timeline=timeline,
+        labelled=labelled,
+        metrics=metrics,
+        stats=stats,
+        strategy_kwargs={"mode": "cross_project", "global_budget": 10.0},
+    )
+
+    assert not result.empty
+    assert result["strategy_mode"].unique().tolist() == ["cross_project"]
+    assert set(result["fold_budget_source"]) == {"global_lopo"}
+
 def test_compute_project_fold_statistics_handles_fallbacks(monkeypatch: pytest.MonkeyPatch) -> None:
     detection_df = _sample_detection_table()
 
@@ -492,6 +520,30 @@ def test_compute_project_fold_statistics_handles_fallbacks(monkeypatch: pytest.M
 
     assert stats["alpha"]["__overall__"]["median"] == pytest.approx(6.0)
     assert stats["beta"]["__overall__"]["median"] == pytest.approx(6.0)
+
+
+def test_compute_project_fold_statistics_produces_lopo_stats() -> None:
+    detection_df = pd.DataFrame(
+        {
+            "project": ["alpha", "alpha", "beta", "beta"],
+            "commit_date": [
+                "2024-01-05T00:00:00+00:00",
+                "2024-01-15T00:00:00+00:00",
+                "2024-02-01T00:00:00+00:00",
+                "2024-02-08T00:00:00+00:00",
+            ],
+            "detection_time_days": [2.0, 4.0, 6.0, 8.0],
+        }
+    )
+
+    stats = strategies._compute_project_fold_statistics(detection_df, compute_lopo=True)
+
+    assert "__global_exclusive__" in stats
+    lopo = stats["__global_exclusive__"]
+    assert pytest.approx(lopo["alpha"]["median"]) == 7.0  # median of beta-only values
+    assert pytest.approx(lopo["beta"]["median"]) == 3.0  # median of alpha-only values
+    assert lopo["alpha"]["count"] == 2.0
+    assert lopo["beta"]["count"] == 2.0
 
 
 def test_strategy1_uses_peer_project_median(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -545,6 +597,46 @@ def test_strategy1_uses_peer_project_median(monkeypatch: pytest.MonkeyPatch) -> 
     assert fold2_row["train_window_end"] == pd.Timestamp("2024-02-28", tz="UTC")
 
 
+def test_strategy1_cross_project_uses_global_stats(monkeypatch: pytest.MonkeyPatch) -> None:
+    detection_df = _sample_detection_table()
+    timelines = {"alpha": _one_day_timeline()}
+
+    fold_stats = {
+        "__global__": {"median": 8.0, "q1": 4.0, "q3": 10.0},
+        "__global_exclusive__": {"alpha": {"median": 9.0, "q1": 5.0, "q3": 12.0, "count": 4.0}},
+        "alpha": {"__overall__": {"median": float("nan")}},
+    }
+
+    def fake_prepare(project, timeline, *_, **__):
+        labelled = _fake_labelled_timeline(
+            project,
+            timeline,
+            folds=["fold-1", "fold-2"],
+            train_ends=[
+                pd.Timestamp("2024-01-31", tz="UTC"),
+                pd.Timestamp("2024-02-28", tz="UTC"),
+            ],
+        )
+        labelled = labelled.drop(columns=["walkforward_fold"])
+        return labelled, "label", 0.5, False
+
+    monkeypatch.setattr(strategies, "_prepare_labelled_timeline", fake_prepare)
+    monkeypatch.setattr(strategies, "_compute_project_fold_statistics", lambda *_args, **_kwargs: fold_stats)
+
+    schedule = strategies.strategy1_median_schedule(
+        detection_df=detection_df,
+        timelines=timelines,
+        predictions_root="unused",
+        risk_column="risk",
+        label_column=None,
+        threshold=0.5,
+        mode="cross_project",
+    )
+
+    assert not schedule.empty
+    assert set(schedule["median_source"]) == {"global_lopo"}
+    assert schedule["strategy_mode"].unique().tolist() == ["cross_project"]
+
 def test_strategy2_random_range_uses_peer_medians(monkeypatch: pytest.MonkeyPatch) -> None:
     detection_df = _sample_detection_table()
     timelines = {"alpha": _one_day_timeline()}
@@ -597,6 +689,50 @@ def test_strategy2_random_range_uses_peer_medians(monkeypatch: pytest.MonkeyPatc
     assert fold2_row["offset_days_q3"] == pytest.approx(8.0)
     assert fold2_row["sampled_offset_days"] == pytest.approx(_expected_uniform("alpha", "fold-2", 123, 2.0, 8.0))
     assert fold2_row["scheduled_additional_builds"] == math.ceil(fold2_row["sampled_offset_days"] * 2.0)
+
+
+def test_strategy2_cross_project_uses_global_quartiles(monkeypatch: pytest.MonkeyPatch) -> None:
+    detection_df = _sample_detection_table()
+    timelines = {"alpha": _one_day_timeline()}
+
+    fold_stats = {
+        "__global__": {"median": 6.0, "q1": 3.0, "q3": 7.0},
+        "__global_exclusive__": {
+            "alpha": {"median": 7.0, "q1": 4.0, "q3": 9.0},
+        },
+        "alpha": {"__overall__": {"median": float("nan"), "q1": float("nan"), "q3": float("nan")}},
+    }
+
+    def fake_prepare(project, timeline, *_, **__):
+        labelled = _fake_labelled_timeline(
+            project,
+            timeline,
+            folds=["fold-1", "fold-2"],
+            train_ends=[
+                pd.Timestamp("2024-01-31", tz="UTC"),
+                pd.Timestamp("2024-02-28", tz="UTC"),
+            ],
+        )
+        labelled = labelled.drop(columns=["walkforward_fold"])
+        return labelled, "label", 0.5, False
+
+    monkeypatch.setattr(strategies, "_prepare_labelled_timeline", fake_prepare)
+    monkeypatch.setattr(strategies, "_compute_project_fold_statistics", lambda *_args, **_kwargs: fold_stats)
+
+    schedule = strategies.strategy2_random_within_median_range(
+        detection_df=detection_df,
+        timelines=timelines,
+        predictions_root="unused",
+        risk_column="risk",
+        label_column=None,
+        threshold=0.5,
+        random_seed=1,
+        mode="cross_project",
+    )
+
+    assert not schedule.empty
+    assert schedule["quartile_source"].unique().tolist() == ["global_lopo"]
+    assert schedule["strategy_mode"].unique().tolist() == ["cross_project"]
 
 
 def test_strategies_emit_fold_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1015,3 +1151,57 @@ def test_strategy4_leave_one_project_out(monkeypatch: pytest.MonkeyPatch, tmp_pa
     assert project_to_builds == {"projA": 2, "projB": 4, "projC": 6}
     assert isinstance(model, strategies.RegressionModel)
     assert diagnostics_file.exists()
+
+
+def test_strategy4_simple_mode_forces_line_change(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    dataset = pd.DataFrame(
+        {
+            "project": ["proj"],
+            "merge_date": [pd.Timestamp("2024-01-05", tz="UTC")],
+            "observed_additional_builds": [2.0],
+            "builds_per_day": [2.0],
+            "label_flag": [True],
+            "label_source": ["mock"],
+            "walkforward_fold": ["fold-1"],
+            "train_window_start": [pd.Timestamp("2023-12-01", tz="UTC")],
+            "train_window_end": [pd.Timestamp("2023-12-31", tz="UTC")],
+            "validation_window_start": [pd.Timestamp("2024-01-01", tz="UTC")],
+            "validation_window_end": [pd.Timestamp("2024-01-05", tz="UTC")],
+            "line_change_total": [10.0],
+        }
+    )
+    captured: Dict[str, tuple[str, ...]] = {}
+
+    def fake_build_regression_dataset(*_args, **kwargs):
+        captured["required"] = tuple(kwargs.get("required_feature_columns", ()))
+        return dataset.copy()
+
+    timeline = pd.DataFrame(
+        {
+            "merge_date": ["2024-01-05"],
+            "merge_date_ts": [pd.Timestamp("2024-01-05", tz="UTC")],
+            "day_index": [10],
+            "builds_per_day": [2.0],
+        }
+    )
+    build_counts_df = pd.DataFrame({"project": ["proj"], "builds_per_day": [2.0]})
+
+    def fake_align(_timeline: pd.DataFrame, target_date: pd.Timestamp) -> strategies.Alignment:
+        return strategies.Alignment(merge_date=target_date, day_index=10, status="within_range")
+
+    monkeypatch.setattr(strategies, "_build_regression_dataset", fake_build_regression_dataset)
+    monkeypatch.setattr(strategies, "_load_build_counts", lambda *_args, **_kwargs: build_counts_df)
+    monkeypatch.setattr(strategies, "_align_to_timeline", fake_align)
+
+    schedule, model, metrics = strategies.strategy4_cross_project_regression(
+        detection_df=pd.DataFrame(),
+        timelines={"proj": timeline},
+        predictions_root=str(tmp_path),
+        mode="simple",
+        evaluation_mode="random_project_split",
+    )
+
+    assert model.feature_order == ["line_change_total"]
+    assert metrics["regression_mode"] == "simple"
+    assert captured["required"] == ("line_change_total",)
+    assert schedule["regression_mode"].unique().tolist() == ["simple"]

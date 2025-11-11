@@ -34,6 +34,15 @@ if [[ -n "${RQ3_SIMULATION_ARGS:-}" ]]; then
   SIM_ARGS=(${RQ3_SIMULATION_ARGS})
 fi
 
+CROSS_PROJECT_ARGS=(
+  --strategy1-mode cross_project
+  --strategy2-mode cross_project
+  --strategy3-mode cross_project
+)
+
+SIMPLE_OUTPUT_DIR="${RQ3_SIM_SIMPLE_OUTPUT_DIR:-${DATASETS_ROOT}/derived_artifacts/rq3/simulation_outputs_strategy4_simple}"
+MULTI_OUTPUT_DIR="${RQ3_SIM_MULTI_OUTPUT_DIR:-${DATASETS_ROOT}/derived_artifacts/rq3/simulation_outputs_strategy4_multi}"
+
 cd "${SCRIPT_DIR}"
 
 export PYTHONLOGLEVEL="${PYTHONLOGLEVEL:-INFO}" 
@@ -42,7 +51,18 @@ export RQ3_LOG_LEVEL="${RQ3_LOG_LEVEL:-DEBUG}"
 run_step "Generating build timelines" \
   "${PYTHON_BIN}" "${SCRIPT_DIR}/timeline_cli_wrapper.py" "${TIMELINE_ARGS[@]}"
 
-run_step "Running additional-build simulation" \
-  "${PYTHON_BIN}" "${SCRIPT_DIR}/simulate_additional_builds.py" "${SIM_ARGS[@]}"
+run_step "Running additional-build simulation (Strategy4 Simple Regression)" \
+  "${PYTHON_BIN}" "${SCRIPT_DIR}/simulate_additional_builds.py" \
+  "${SIM_ARGS[@]}" \
+  "${CROSS_PROJECT_ARGS[@]}" \
+  --strategy4-mode simple \
+  --output-dir "${SIMPLE_OUTPUT_DIR}"
+
+run_step "Running additional-build simulation (Strategy4 Multi Regression)" \
+  "${PYTHON_BIN}" "${SCRIPT_DIR}/simulate_additional_builds.py" \
+  "${SIM_ARGS[@]}" \
+  "${CROSS_PROJECT_ARGS[@]}" \
+  --strategy4-mode multi \
+  --output-dir "${MULTI_OUTPUT_DIR}"
 
 echo "RQ3 simulation completed. Outputs are available under: ${DATASETS_ROOT}/derived_artifacts/rq3/simulation_outputs"
