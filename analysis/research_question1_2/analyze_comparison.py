@@ -20,6 +20,39 @@ COLOR_PALETTE = {
     "RandomForest": "#ff7f0e",  # オレンジ
     "Random": "#2ca02c"         # 緑 (追加)
 }
+
+TITLE_FONT_SIZE = 20
+AXIS_LABEL_FONT_SIZE = 16
+TICK_FONT_SIZE = 14
+SMALL_TICK_FONT_SIZE = 13
+LEGEND_FONT_SIZE = 12
+
+plt.rcParams.update({
+    "axes.titlesize": TITLE_FONT_SIZE,
+    "axes.labelsize": AXIS_LABEL_FONT_SIZE,
+    "xtick.labelsize": TICK_FONT_SIZE,
+    "ytick.labelsize": TICK_FONT_SIZE,
+    "legend.fontsize": LEGEND_FONT_SIZE,
+    "legend.title_fontsize": LEGEND_FONT_SIZE,
+})
+
+# カバレッジ系・VCC特徴量の表示名を正規化
+COVERAGE_FEATURE_RENAMES = {
+    "project_total_region_percent": "RegionCoverage",
+    "project_total_function_percent": "FunctionCoverage",
+    "project_total_line_percent": "LineCoverage",
+    "project_total_branch_percent": "BranchCoverage",
+    "project_total_instruction_percent": "InstructionCoverage",
+    "project_total_instantiation_percent": "InstantiationCoverage",
+    "project_total_region_percent_delta": "RegionCoverageDelta",
+    "project_total_function_percent_delta": "FunctionCoverageDelta",
+    "project_total_line_percent_delta": "LineCoverageDelta",
+    "project_total_branch_percent_delta": "BranchCoverageDelta",
+    "project_total_instruction_percent_delta": "InstructionCoverageDelta",
+    "project_total_instantiation_percent_delta": "InstantiationCoverageDelta",
+    "patch_coverage_reculculated": "PatchCoverage",
+    "patch_coverage_recalculated": "PatchCoverage",
+}
 ## ------------------------------------------------------
 ## 設定
 ## ------------------------------------------------------
@@ -28,7 +61,7 @@ COLOR_PALETTE = {
 # バリュー: 対応する結果が格納されているディレクトリのパス
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RESULTS_ROOT = REPO_ROOT / "datasets" / "model_outputs" 
-# /work/riku-ka/vuljit/datasets/model_outputs
+
 BASE_DIRS = {
     "XGBoost": RESULTS_ROOT / "xgboost",
     "RandomForest": RESULTS_ROOT / "random_forest",
@@ -62,10 +95,33 @@ def load_experiment_data(base_dir: Path, project: str, exp_number: int) -> tuple
     return importance_df, metrics_dict
 
 
+def _canonicalize_feature_names(feature_series: pd.Series) -> pd.Series:
+    """Map verbose coverage/VCC features to shorter display names for plots."""
+
+    def _rename_single(name: str) -> str:
+        if not isinstance(name, str):
+            return name
+        normalized = COVERAGE_FEATURE_RENAMES.get(name, name)
+        match = re.match(r"^VCC_([a-zA-Z])(\d+)_", normalized)
+        if match:
+            prefix = match.group(1).upper()
+            index = match.group(2)
+            return f"VCCFINDER_{prefix}{index}"
+        return normalized
+
+    return feature_series.map(_rename_single)
+
+
 ## ------------------------------------------------------
 ## モデル間の性能を比較・可視化する関数 (★改良版)
 ## ------------------------------------------------------
-def visualize_per_model_importance(all_metrics_df: pd.DataFrame, all_importances_df: pd.DataFrame, exp_num: int, num_projects: int):
+def visualize_per_model_importance(
+    all_metrics_df: pd.DataFrame,
+    all_importances_df: pd.DataFrame,
+    exp_num: int,
+    num_projects: int,
+    top_feature_count: int,
+):
     """
     評価指標はモデル間で比較し、特徴量重要度はモデルごとに個別のグラフで可視化する関数
     """
@@ -80,9 +136,13 @@ def visualize_per_model_importance(all_metrics_df: pd.DataFrame, all_importances
     sns.violinplot(x='Metric', y='Value', hue='model', data=all_metrics_df, order=median_order,
                    palette=COLOR_PALETTE, inner='box', linewidth=1.5, saturation=0.8)
 
-    plt.title(f'Metrics Comparison (Violin Plot) for Exp {exp_num} (across {num_projects} projects)', fontsize=18, weight='bold')
-    plt.xlabel('Metric', fontsize=14)
-    plt.ylabel('Score', fontsize=14)
+    plt.title(
+        f'Metrics Comparison (Violin Plot) for Exp {exp_num} (across {num_projects} projects)',
+        fontsize=TITLE_FONT_SIZE,
+        weight='bold',
+    )
+    plt.xlabel('Metric', fontsize=AXIS_LABEL_FONT_SIZE)
+    plt.ylabel('Score', fontsize=AXIS_LABEL_FONT_SIZE)
     # ▼ 変更: Y軸範囲をデータから動的に決定（負のMCCも可視化）
     min_val = all_metrics_df['Value'].min(skipna=True)
     max_val = all_metrics_df['Value'].max(skipna=True)
@@ -90,10 +150,10 @@ def visualize_per_model_importance(all_metrics_df: pd.DataFrame, all_importances
     y_max = 1.0 if pd.isna(max_val) else max(1.0, max_val * 1.05)
     plt.ylim(y_min, y_max)
     # plt.ylim(0, 1.05)  # ← 固定範囲は削除
-    plt.xticks(rotation=45, ha='right', fontsize=12)
-    plt.yticks(fontsize=12)
+    plt.xticks(rotation=45, ha='right', fontsize=TICK_FONT_SIZE)
+    plt.yticks(fontsize=TICK_FONT_SIZE)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
-    plt.legend(title='Model', fontsize=12)
+    plt.legend(title='Model', fontsize=LEGEND_FONT_SIZE, title_fontsize=LEGEND_FONT_SIZE)
     plt.tight_layout()
     # グラフを保存
     metrics_filename = f"exp{exp_num}_metrics_comparison.png"
@@ -108,26 +168,45 @@ def visualize_per_model_importance(all_metrics_df: pd.DataFrame, all_importances
         plt.figure(figsize=(14, 12))
 
         # 対象モデルの重要度データのみを抽出
-        model_importances_df = all_importances_df[all_importances_df['model'] == model_name]
+        model_importances_df = all_importances_df[all_importances_df['model'] == model_name].copy()
         
         if model_importances_df.empty:
             continue
 
-        # モデルごとにTop 20の特徴量を決定
+        # 念のため負の値をクリップ
+        model_importances_df['importance'] = model_importances_df['importance'].clip(lower=0)
+        model_importances_df['feature'] = _canonicalize_feature_names(model_importances_df['feature'])
+
+        # モデルごとにTop-Kの特徴量を決定
         median_importances = model_importances_df.groupby('feature')['importance'].median().sort_values(ascending=False)
-        top_20_features = median_importances.head(20).index
-        top_features_df = model_importances_df[model_importances_df['feature'].isin(top_20_features)]
+        k = top_feature_count if top_feature_count and top_feature_count > 0 else len(median_importances)
+        top_features = median_importances.head(k).index
+        top_features_df = model_importances_df[model_importances_df['feature'].isin(top_features)]
         
         # 単一モデルのバイオリンプロットを描画 (hueは不要)
-        sns.violinplot(x='importance', y='feature', data=top_features_df, order=top_20_features,
-                       orient='h', color='skyblue', inner='box', linewidth=1.5, saturation=0.8)
+        sns.violinplot(
+            x='feature',
+            y='importance',
+            data=top_features_df,
+            order=top_features,
+            orient='v',
+            color='skyblue',
+            inner='box',
+            linewidth=1.5,
+            saturation=0.8,
+        )
 
-        plt.title(f'Feature Importance ({model_name}) for Exp {exp_num} - Top 20', fontsize=18, weight='bold')
-        plt.xlabel('Importance', fontsize=14)
-        plt.ylabel('Feature', fontsize=12)
-        plt.xticks(fontsize=12)
-        plt.yticks(fontsize=12)
-        plt.grid(axis='x', linestyle='--', alpha=0.7)
+        plt.title(
+            f'Feature Importance ({model_name}) for Exp {exp_num} - Top {k}',
+            fontsize=TITLE_FONT_SIZE,
+            weight='bold',
+        )
+        plt.xlabel('Feature', fontsize=AXIS_LABEL_FONT_SIZE)
+        plt.ylabel('Importance', fontsize=AXIS_LABEL_FONT_SIZE)
+        plt.xticks(rotation=45, ha='right', fontsize=SMALL_TICK_FONT_SIZE)
+        plt.yticks(fontsize=TICK_FONT_SIZE)
+        plt.ylim(bottom=0)
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
         plt.tight_layout()
         
         # モデル名をファイル名に含めて保存
@@ -195,9 +274,15 @@ def export_top_n_performance(final_metrics_df: pd.DataFrame, exp_num: int, out_d
             g_sorted = g.sort_values('Value', ascending=False)
             plt.barh(g_sorted['project'], g_sorted['Value'], color=COLOR_PALETTE.get(model_name, '#888888'))
             plt.gca().invert_yaxis()  # 上位を上に
-            plt.xlabel(metric_name)
-            plt.ylabel('Project')
-            plt.title(f"Top {len(g_sorted)} {metric_name} — {model_name} (Exp {exp_num})")
+            plt.xlabel(metric_name, fontsize=AXIS_LABEL_FONT_SIZE)
+            plt.ylabel('Project', fontsize=AXIS_LABEL_FONT_SIZE)
+            plt.xticks(fontsize=TICK_FONT_SIZE)
+            plt.yticks(fontsize=TICK_FONT_SIZE)
+            plt.title(
+                f"Top {len(g_sorted)} {metric_name} — {model_name} (Exp {exp_num})",
+                fontsize=TITLE_FONT_SIZE,
+                weight='bold',
+            )
             plt.tight_layout()
             fig_path = out_dir / f"exp{exp_num}_top{top_n}_{metric_name}_{model_name}.png"
             plt.savefig(fig_path, dpi=150)
@@ -302,9 +387,15 @@ def export_top_by_positive_days(final_metrics_df: pd.DataFrame,
                 labels = [f"{proj} ({pdays})" for proj, pdays in zip(g_sorted['project'], g_sorted['positive_days'])]
                 plt.barh(labels, g_sorted['Value'], color=COLOR_PALETTE.get(model_name, '#888888'))
                 plt.gca().invert_yaxis()
-                plt.xlabel(metric_name)
-                plt.ylabel('Project (positive days)')
-                plt.title(f"Top {len(g_sorted)} by positives — {model_name} — {metric_name} (Exp {exp_num})")
+                plt.xlabel(metric_name, fontsize=AXIS_LABEL_FONT_SIZE)
+                plt.ylabel('Project (positive days)', fontsize=AXIS_LABEL_FONT_SIZE)
+                plt.xticks(fontsize=TICK_FONT_SIZE)
+                plt.yticks(fontsize=TICK_FONT_SIZE)
+                plt.title(
+                    f"Top {len(g_sorted)} by positives — {model_name} — {metric_name} (Exp {exp_num})",
+                    fontsize=TITLE_FONT_SIZE,
+                    weight='bold',
+                )
                 plt.tight_layout()
                 fig_path = out_dir / f"exp{exp_num}_top{len(top_projects)}_by_positive_days_{metric_name}_{model_name}.png"
                 plt.savefig(fig_path, dpi=150)
@@ -368,12 +459,17 @@ def visualize_positive_day_top_projects(final_metrics_df: pd.DataFrame,
         hue="model",
         palette=COLOR_PALETTE
     )
-    ax.set_title(f"Top {len(project_order)} {metric_name} by Positive Days — Exp {exp_num}", fontsize=18, weight='bold')
-    ax.set_xlabel(metric_name, fontsize=14)
-    ax.set_ylabel("Project (positive days)", fontsize=12)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=11)
+    ax.set_title(
+        f"Top {len(project_order)} {metric_name} by Positive Days — Exp {exp_num}",
+        fontsize=TITLE_FONT_SIZE,
+        weight='bold',
+    )
+    ax.set_xlabel(metric_name, fontsize=AXIS_LABEL_FONT_SIZE)
+    ax.set_ylabel("Project (positive days)", fontsize=AXIS_LABEL_FONT_SIZE)
+    plt.xticks(fontsize=TICK_FONT_SIZE)
+    plt.yticks(fontsize=TICK_FONT_SIZE)
     plt.grid(axis='x', linestyle='--', alpha=0.7)
+    ax.legend(title='Model', fontsize=LEGEND_FONT_SIZE, title_fontsize=LEGEND_FONT_SIZE)
     plt.tight_layout()
 
     fig_path = out_dir / f"exp{exp_num}_top{len(project_order)}_{metric_name}_by_positive_days_comparison.png"
@@ -399,6 +495,7 @@ def main():
     parser.add_argument('--positives-metric', type=str, default='MCC', help='陽性上位プロジェクトで併せて出力する特定メトリクス名（例: MCC）')
     parser.add_argument('--plot-positives-top', action='store_true', help='陽性上位N件の棒グラフも保存する')
     parser.add_argument('--visualize-positives-top-n', type=int, default=10, help='陽性日数上位N件の結果を追加で可視化する（0で無効）')
+    parser.add_argument('--top-feature-count', type=int, default=20, help='特徴量重要度の可視化で表示する特徴量数')
     args = parser.parse_args()
     
     output_summary_dir = REPO_ROOT / "datasets" / "derived_artifacts" / "rq1_rq2" / "evaluation_summary_comparison"
@@ -630,7 +727,9 @@ def main():
         visualize_per_model_importance(
             final_metrics_df,
             final_importances_df if not final_importances_df.empty else pd.DataFrame(columns=['model','feature','importance']),
-            exp_num, num_projects_in_exp
+            exp_num,
+            num_projects_in_exp,
+            args.top_feature_count
         )
 
     print("\n🎉 Analysis complete!")
