@@ -25,7 +25,7 @@ PYTHON_SCRIPT_PATH_2="${script_dir}/analyze_trends_comparison.py"
 
 
 echo "====== Starting Slurm Task ${SLURM_ARRAY_TASK_ID} ======"
-python ${PYTHON_SCRIPT_PATH_1}
+python ${PYTHON_SCRIPT_PATH_1} --top-feature-count 10
 echo "---------------------------------"
 echo "====== Starting Slurm Task ${SLURM_ARRAY_TASK_ID} ======"
 python ${PYTHON_SCRIPT_PATH_2}  

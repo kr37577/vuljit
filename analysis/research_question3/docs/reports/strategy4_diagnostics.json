@@ -1,82 +1,82 @@
 {
   "model": {
     "version": "linear_regression_v1",
-    "intercept": -0.06159047185614423,
+    "intercept": 4.796699823024896,
     "coefficients": {
-      "VCC_s1_nb_added_sizeof": -0.0017437945981970736,
-      "VCC_s2_nb_removed_sizeof": 0.0024035216762763054,
-      "VCC_s3_diff_sizeof": -0.004147316274446214,
-      "VCC_s4_sum_sizeof": 0.000659727078096253,
-      "VCC_s5_nb_added_continue": 0.1539577510061214,
-      "VCC_s6_nb_removed_continue": -0.06865878257884203,
-      "VCC_s7_nb_added_break": 0.002394346521248803,
-      "VCC_s8_nb_removed_break": -0.0012478399141242723,
-      "VCC_s9_nb_added_INTMAX": -0.04353839576546164,
-      "VCC_s10_nb_removed_INTMAX": -0.027083001783774423,
-      "VCC_s11_nb_added_goto": -0.01054522222207172,
-      "VCC_s12_nb_removed_goto": 0.006618441240227887,
-      "VCC_s13_nb_added_define": -0.0003298746873753133,
-      "VCC_s14_nb_removed_define": 0.0002871569380476181,
-      "VCC_s15_nb_added_struct": 0.0003650633091494722,
-      "VCC_s16_nb_removed_struct": 0.0010263057503221563,
-      "VCC_s17_diff_struct": -0.0006612424411716591,
-      "VCC_s18_sum_struct": 0.0013913690594679236,
-      "VCC_s19_nb_added_offset": 0.0074678525727987916,
-      "VCC_s20_nb_removed_offset": -0.007952555031297805,
-      "VCC_s21_nb_added_void": 4.4510415004096835e-05,
-      "VCC_s22_nb_removed_void": -0.0020164098084813507,
-      "VCC_s23_diff_void": 0.002060920223485649,
-      "VCC_s24_sum_void": -0.0019718993934782813,
-      "VCC_f1_sum_file_change": 0.004295666619142786,
-      "VCC_f2_nb_added_loop": -0.000585513662369478,
-      "VCC_f3_nb_removed_loop": 0.001015366283154023,
-      "VCC_f4_diff_loop": -0.0016008799455226284,
-      "VCC_f5_sum_loop": 0.00042985262078559794,
-      "VCC_f6_nb_added_if": 0.0005397947046790683,
-      "VCC_f7_nb_removed_if": -0.0005303962615338942,
-      "VCC_f8_diff_if": 0.001070190966208459,
-      "VCC_f9_sum_if": 9.39844314343935e-06,
-      "VCC_f10_nb_added_line": -1.6053726198464457e-06,
-      "VCC_f11_nb_removed_line": -1.5125580225294408e-05,
-      "VCC_f12_diff_line": 1.3520207673511572e-05,
-      "VCC_f13_sum_line": -1.6730952947102695e-05,
-      "VCC_f14_nb_added_paren": -4.170266919165805e-05,
-      "VCC_f15_nb_removed_paren": 6.631101853896149e-05,
-      "VCC_f16_diff_paren": -0.00010801368768489916,
-      "VCC_f17_sum_paren": 2.460834934100986e-05,
-      "VCC_f18_nb_added_bool": 0.00017319968488640168,
-      "VCC_f19_nb_removed_bool": -8.790178350443975e-05,
-      "VCC_f20_diff_bool": 0.00026110146840248663,
-      "VCC_f21_sum_bool": 8.529790138524229e-05,
-      "VCC_f22_nb_added_assignement": 3.331589114903208e-05,
-      "VCC_f23_nb_removed_assignement": 7.628369956547143e-08,
-      "VCC_f24_diff_assignement": 3.323960742459761e-05,
-      "VCC_f25_sum_assignement": 3.3392174878361935e-05,
-      "VCC_f26_nb_added_function": -0.0026477091640796963,
-      "VCC_f27_nb_removed_function": 0.0025710535637291417,
-      "VCC_f28_diff_function": -0.005218762727805557,
-      "VCC_f29_sum_function": -7.665560035281446e-05,
-      "VCC_w1": -0.04706368706897238,
-      "VCC_w2": -0.03572959423918821,
-      "VCC_w3": -0.08580281509843533,
-      "VCC_w4": 0.2283345975328331,
-      "VCC_w5": -0.10011113271448434,
-      "VCC_w6": -0.07802431357332867,
-      "VCC_w7": -0.02383281008577916,
-      "VCC_w8": -0.06236278721133101,
-      "VCC_w9": -0.02600495659940728,
-      "VCC_w10": 0.02638029118290042,
-      "project_total_function_percent": -0.031125797284051307,
-      "project_total_line_percent": -0.07694961574874433,
-      "project_total_region_percent": 0.09099314174687274,
-      "project_total_branch_percent": 0.009844720495382969,
-      "project_total_instantiation_percent": 0.023672643593489983,
-      "patch_coverage_recalculated": 0.010312189813632829,
-      "project_total_function_percent_delta": 0.03907087932547446,
-      "project_total_line_percent_delta": -0.13178486468827644,
-      "project_total_region_percent_delta": 0.12229810406987454,
-      "project_total_branch_percent_delta": -0.002338174424397474,
-      "project_total_instantiation_percent_delta": -0.017536099620990418,
+      "VCC_s1_nb_added_sizeof": -0.0006181577688121803,
+      "VCC_s2_nb_removed_sizeof": 0.0014523265748622467,
+      "VCC_s3_diff_sizeof": -0.002070484343737157,
+      "VCC_s4_sum_sizeof": 0.0008341688059886991,
+      "VCC_s5_nb_added_continue": 0.10713597762194588,
+      "VCC_s6_nb_removed_continue": -0.08737388317059423,
+      "VCC_s7_nb_added_break": 0.003496868686572752,
+      "VCC_s8_nb_removed_break": -0.0012475211747738808,
+      "VCC_s9_nb_added_INTMAX": 0.03692660059805487,
+      "VCC_s10_nb_removed_INTMAX": -0.05833687200102817,
+      "VCC_s11_nb_added_goto": -0.01087783428660111,
+      "VCC_s12_nb_removed_goto": 0.01223926897699985,
+      "VCC_s13_nb_added_define": -0.00039314865869640066,
+      "VCC_s14_nb_removed_define": -7.83906705374357e-05,
+      "VCC_s15_nb_added_struct": 4.03328597111674e-05,
+      "VCC_s16_nb_removed_struct": 0.0004493016408860795,
+      "VCC_s17_diff_struct": -0.00040896878117042956,
+      "VCC_s18_sum_struct": 0.0004896345005967612,
+      "VCC_s19_nb_added_offset": 0.008345185306193353,
+      "VCC_s20_nb_removed_offset": -0.008485605287211345,
+      "VCC_s21_nb_added_void": 0.00030129655951124934,
+      "VCC_s22_nb_removed_void": -0.0017906101583672063,
+      "VCC_s23_diff_void": 0.002091906717875819,
+      "VCC_s24_sum_void": -0.0014893135988529732,
+      "VCC_f1_sum_file_change": 0.0029824966392784785,
+      "VCC_f2_nb_added_loop": -0.0008781443501437378,
+      "VCC_f3_nb_removed_loop": 0.0006336770603372621,
+      "VCC_f4_diff_loop": -0.0015118214104924976,
+      "VCC_f5_sum_loop": -0.0002444672897996686,
+      "VCC_f6_nb_added_if": 4.7162434883826765e-05,
+      "VCC_f7_nb_removed_if": -0.0002707626482281872,
+      "VCC_f8_diff_if": 0.000317925083117121,
+      "VCC_f9_sum_if": -0.00022360021336679387,
+      "VCC_f10_nb_added_line": -5.234372587595119e-06,
+      "VCC_f11_nb_removed_line": -1.8088610744277506e-06,
+      "VCC_f12_diff_line": -3.4255118772311827e-06,
+      "VCC_f13_sum_line": -7.043234186746418e-06,
+      "VCC_f14_nb_added_paren": 4.6057329933235636e-07,
+      "VCC_f15_nb_removed_paren": 2.3645957864248945e-06,
+      "VCC_f16_diff_paren": -1.9040223693256308e-06,
+      "VCC_f17_sum_paren": 2.825168918307863e-06,
+      "VCC_f18_nb_added_bool": 7.052254783569689e-05,
+      "VCC_f19_nb_removed_bool": 4.121276690412061e-05,
+      "VCC_f20_diff_bool": 2.9309780901081578e-05,
+      "VCC_f21_sum_bool": 0.0001117353147169417,
+      "VCC_f22_nb_added_assignement": 1.849197168924538e-05,
+      "VCC_f23_nb_removed_assignement": 2.853907182728821e-07,
+      "VCC_f24_diff_assignement": 1.8206580919929993e-05,
+      "VCC_f25_sum_assignement": 1.8777362299472744e-05,
+      "VCC_f26_nb_added_function": -0.002908569541525796,
+      "VCC_f27_nb_removed_function": 0.0028522790818164942,
+      "VCC_f28_diff_function": -0.0057608486233557445,
+      "VCC_f29_sum_function": -5.6290459709461976e-05,
+      "VCC_w1": -0.15288929541139712,
+      "VCC_w2": -0.13341021930052321,
+      "VCC_w3": -0.016354527232498355,
+      "VCC_w4": -0.09545962088561485,
+      "VCC_w5": -0.0935278515552577,
+      "VCC_w6": -0.09460345143375329,
+      "VCC_w7": 0.02318645028652669,
+      "VCC_w8": -0.15509908517166368,
+      "VCC_w9": -0.09463335349537443,
+      "VCC_w10": -0.011446473840629759,
+      "project_total_function_percent": 0.11681364109613591,
+      "project_total_line_percent": -0.3388453407549511,
+      "project_total_region_percent": 0.21770697367037345,
+      "project_total_branch_percent": -0.010205299698160003,
+      "project_total_instantiation_percent": -0.04545149114663555,
+      "patch_coverage_recalculated": -0.03145666357874705,
+      "project_total_function_percent_delta": -0.09098233915151821,
+      "project_total_line_percent_delta": -0.36567017399977675,
+      "project_total_region_percent_delta": 0.5936840281519692,
+      "project_total_branch_percent_delta": 0.07475034062781967,
+      "project_total_instantiation_percent_delta": 0.05664046647736348,
       "patch_coverage_recalculated_delta": 0.0
     },
     "feature_order": [
@@ -168,94 +168,115 @@
   "metrics": {
     "evaluation_mode": "leave_one_project_out",
     "lopo_overall": {
-      "mae": 2.0918712194719435,
-      "rmse": 8.492503150159171,
-      "mape": 1.1720009559274056,
-      "count": 4973.0
+      "mae": 6.262616947313031,
+      "rmse": 53.25625462688551,
+      "mape": 2.5616973225776745,
+      "count": 6229.0
     },
     "lopo_project_metrics": {
       "arrow": {
-        "mae": 1.1464520513481784,
-        "rmse": 1.4632415376288184,
-        "mape": 0.39185128721952767,
-        "count": 376.0
+        "mae": 2.7828910332406185,
+        "rmse": 2.944819049208796,
+        "mape": 0.693497833302896,
+        "count": 280.0
       },
       "c-blosc2": {
-        "mae": 3.58920038824055,
-        "rmse": 12.576152693931046,
-        "mape": 1.485060058705994,
-        "count": 35.0
+        "mae": 5.609599916205092,
+        "rmse": 13.495258263822146,
+        "mape": 0.950313755214961,
+        "count": 38.0
+      },
+      "ghostscript": {
+        "mae": 38.197827978592635,
+        "rmse": 366.1469453462773,
+        "mape": 0.9459515126602753,
+        "count": 124.0
       },
       "harfbuzz": {
-        "mae": 1.5852825794602152,
-        "rmse": 2.495065807403578,
-        "mape": 0.8078223658843966,
-        "count": 596.0
+        "mae": 10.381199275706194,
+        "rmse": 10.551010576671901,
+        "mape": 3.3321132742143535,
+        "count": 544.0
       },
       "icu": {
-        "mae": 0.9684040679977498,
-        "rmse": 1.6445598242049966,
-        "mape": 0.7913072088353259,
-        "count": 110.0
+        "mae": 2.1728074042035517,
+        "rmse": 2.4488977136360495,
+        "mape": 0.6142596134484191,
+        "count": 128.0
       },
       "libjxl": {
-        "mae": 2.007195485464553,
-        "rmse": 11.41452629364912,
-        "mape": 0.9992130429179389,
-        "count": 114.0
+        "mae": 8.000353913613013,
+        "rmse": 15.09242174395253,
+        "mape": 0.9782598277224623,
+        "count": 121.0
       },
       "libxml2": {
-        "mae": 4.259803394989956,
-        "rmse": 27.81884111761835,
-        "mape": 0.9958363045269006,
-        "count": 63.0
+        "mae": 4.462614487663164,
+        "rmse": 23.982484107782902,
+        "mape": 0.9664215103772876,
+        "count": 84.0
       },
       "mruby": {
-        "mae": 2.0944976542491993,
-        "rmse": 7.644882142571244,
-        "mape": 0.9737359891404395,
-        "count": 91.0
+        "mae": 6.863715019002821,
+        "rmse": 10.481165235100564,
+        "mape": 0.5470670862733015,
+        "count": 162.0
+      },
+      "ndpi": {
+        "mae": 6.23041556638437,
+        "rmse": 25.297494647318384,
+        "mape": 3.1524969474108357,
+        "count": 202.0
       },
       "openthread": {
-        "mae": 1.3115084870332363,
-        "rmse": 9.713823963831675,
-        "mape": 1.0643248526604012,
-        "count": 500.0
+        "mae": 6.0054557292036606,
+        "rmse": 9.917491337500895,
+        "mape": 3.039105568832686,
+        "count": 650.0
+      },
+      "php": {
+        "mae": 4.230876511681653,
+        "rmse": 20.090126936618596,
+        "mape": 2.122130234119304,
+        "count": 752.0
       },
       "poppler": {
-        "mae": 0.4838364844036763,
-        "rmse": 0.6151647689677727,
+        "mae": 2.7092891263227825,
+        "rmse": 2.870827503274788,
         "mape": NaN,
-        "count": 13.0
+        "count": 29.0
       },
       "serenity": {
-        "mae": 1.8419348343249342,
-        "rmse": 12.22289729930579,
-        "mape": 1.6235333763472042,
-        "count": 896.0
+        "mae": 5.885818395436628,
+        "rmse": 14.177337614701578,
+        "mape": 5.163731163117437,
+        "count": 829.0
       },
       "wireshark": {
-        "mae": 3.5139912874018093,
-        "rmse": 7.707780020546764,
-        "mape": 1.221785214927184,
-        "count": 1355.0
+        "mae": 5.574931288207495,
+        "rmse": 11.293905084693321,
+        "mape": 2.931448439583883,
+        "count": 1447.0
       },
       "wolfssl": {
-        "mae": 1.2538490474977424,
-        "rmse": 4.653598159475413,
-        "mape": 0.8241462677838647,
-        "count": 824.0
+        "mae": 4.209859676209142,
+        "rmse": 6.0274096774914225,
+        "mape": 1.1136589403870203,
+        "count": 839.0
       }
     },
     "lopo_heldout_projects": [
       "arrow",
       "c-blosc2",
+      "ghostscript",
       "harfbuzz",
       "icu",
       "libjxl",
       "libxml2",
       "mruby",
+      "ndpi",
       "openthread",
+      "php",
       "poppler",
       "serenity",
       "wireshark",
@@ -263,65 +284,65 @@
     ],
     "fold_metrics": {
       "fold-1": {
-        "mae": 1.3315189150585165,
-        "rmse": 4.254561255026443,
-        "mape": 1.5426761044467612,
-        "count": 458.0
+        "mae": 7.354973740733413,
+        "rmse": 19.146724963891785,
+        "mape": 4.2259297679079735,
+        "count": 439.0
       },
       "fold-2": {
-        "mae": 1.7981562331693348,
-        "rmse": 6.94331535648638,
-        "mape": 1.130350361203503,
-        "count": 521.0
+        "mae": 6.678830185253678,
+        "rmse": 17.32722038758596,
+        "mape": 1.4753318030916684,
+        "count": 607.0
       },
       "fold-3": {
-        "mae": 1.9506246365739497,
-        "rmse": 5.669933452979915,
-        "mape": 0.8302213178116385,
-        "count": 573.0
+        "mae": 4.953537543445845,
+        "rmse": 12.345015421963828,
+        "mape": 1.6035429767560945,
+        "count": 732.0
       },
       "fold-4": {
-        "mae": 2.236873178716541,
-        "rmse": 8.507278703227248,
-        "mape": 0.518477295274911,
-        "count": 583.0
+        "mae": 10.188918151053146,
+        "rmse": 144.71705990556353,
+        "mape": 2.5374531792492774,
+        "count": 792.0
       },
       "fold-5": {
-        "mae": 2.581607130265095,
-        "rmse": 15.266206068845676,
-        "mape": 0.9459329977692406,
-        "count": 578.0
+        "mae": 6.101026627338317,
+        "rmse": 19.617555069282755,
+        "mape": 1.6472624896791326,
+        "count": 758.0
       },
       "fold-6": {
-        "mae": 2.339842921597229,
-        "rmse": 11.124342527713834,
-        "mape": 0.9734671426550984,
-        "count": 609.0
+        "mae": 5.5141371208730146,
+        "rmse": 14.32956289399465,
+        "mape": 2.427197906364345,
+        "count": 751.0
       },
       "fold-7": {
-        "mae": 2.1121936762300995,
-        "rmse": 5.976235306048602,
-        "mape": 1.2007425705706434,
-        "count": 593.0
+        "mae": 5.133930233951837,
+        "rmse": 7.726283238188817,
+        "mape": 2.60745453606605,
+        "count": 754.0
       },
       "fold-8": {
-        "mae": 2.517109603826976,
-        "rmse": 7.21434611273727,
-        "mape": 3.062235502925523,
-        "count": 585.0
+        "mae": 5.678815312223942,
+        "rmse": 12.042055744323067,
+        "mape": 5.728875445157837,
+        "count": 776.0
       },
       "fold-9": {
-        "mae": 1.6748885943301666,
-        "rmse": 2.495406008144119,
+        "mae": 4.819202698003126,
+        "rmse": 5.929041103740764,
         "mape": NaN,
-        "count": 473.0
+        "count": 620.0
       }
     },
     "overall_performance": {
-      "mae": 2.0918712194719435,
-      "rmse": 8.492503150159171,
-      "mape": 1.1720009559274056,
-      "count": 4973.0
+      "mae": 6.262616947313031,
+      "rmse": 53.25625462688551,
+      "mape": 2.5616973225776745,
+      "count": 6229.0
     },
     "model_version": "linear_regression_v1",
     "feature_signature": "1d2d87d6d251cdfd62040c2e3590be6aee34ce239b8ea23ea6fec136e80fbef9",
@@ -407,8 +428,8 @@
       "project_total_instantiation_percent_delta",
       "patch_coverage_recalculated_delta"
     ],
-    "train_mae": 0.8702535058552234,
-    "train_projects": 12
+    "train_mae": 2.8583595191653512,
+    "train_projects": 15
   },
   "folds": {
     "fold-1": {
@@ -416,63 +437,63 @@
       "train_window_end": "2021-09-25T00:00:00+00:00",
       "validation_window_start": "2018-12-31T00:00:00+00:00",
       "validation_window_end": "2022-03-31T00:00:00+00:00",
-      "rows": 458
+      "rows": 439
     },
     "fold-2": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2022-03-31T00:00:00+00:00",
       "validation_window_start": "2019-07-10T00:00:00+00:00",
       "validation_window_end": "2022-12-02T00:00:00+00:00",
-      "rows": 521
+      "rows": 607
     },
     "fold-3": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2022-12-02T00:00:00+00:00",
       "validation_window_start": "2020-03-15T00:00:00+00:00",
       "validation_window_end": "2023-04-13T00:00:00+00:00",
-      "rows": 573
+      "rows": 732
     },
     "fold-4": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2023-04-13T00:00:00+00:00",
       "validation_window_start": "2020-11-19T00:00:00+00:00",
       "validation_window_end": "2023-10-01T00:00:00+00:00",
-      "rows": 583
+      "rows": 792
     },
     "fold-5": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2023-10-01T00:00:00+00:00",
       "validation_window_start": "2021-04-23T00:00:00+00:00",
       "validation_window_end": "2024-02-07T00:00:00+00:00",
-      "rows": 578
+      "rows": 758
     },
     "fold-6": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2024-02-07T00:00:00+00:00",
       "validation_window_start": "2022-03-04T00:00:00+00:00",
       "validation_window_end": "2024-05-21T00:00:00+00:00",
-      "rows": 609
+      "rows": 751
     },
     "fold-7": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2024-05-21T00:00:00+00:00",
-      "validation_window_start": "2023-01-14T00:00:00+00:00",
+      "validation_window_start": "2022-12-15T00:00:00+00:00",
       "validation_window_end": "2024-07-24T00:00:00+00:00",
-      "rows": 593
+      "rows": 754
     },
     "fold-8": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2024-07-24T00:00:00+00:00",
       "validation_window_start": "2023-05-16T00:00:00+00:00",
       "validation_window_end": "2025-02-21T00:00:00+00:00",
-      "rows": 585
+      "rows": 776
     },
     "fold-9": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2025-02-21T00:00:00+00:00",
       "validation_window_start": "2023-12-29T00:00:00+00:00",
       "validation_window_end": "2025-06-02T00:00:00+00:00",
-      "rows": 473
+      "rows": 620
     }
   }
 }

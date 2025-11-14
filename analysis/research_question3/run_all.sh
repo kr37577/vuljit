@@ -15,6 +15,5 @@ fi
 issues_csv="$1"
 shift
 
-python3 "$SCRIPT_DIR/measure_detection_time.py" --issues-csv "$issues_csv" "$@"
-python3 "$SCRIPT_DIR/extract_build_counts.py"
+bash "$SCRIPT_DIR/run_prepare_RQ3.sh" 
 bash "$SCRIPT_DIR/rq3.sh"

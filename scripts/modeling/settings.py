@@ -55,7 +55,7 @@ SAMPLING_METHOD = 'random_under'
 RANDOM_UNDER_SAMPLING_STRATEGY = 'majority'
 # --- モデル 定義 ---
 # 使用するモデルのリスト 'random_forest', 'xgboost', 'random'
-SELECTED_MODEL = os.getenv('VULJIT_MODEL', 'random')  # 'random_forest' or 'xgboost' or 'random'
+SELECTED_MODEL = os.getenv('VULJIT_MODEL', 'xgboost')  # 'random_forest' or 'xgboost' or 'random'
 # 使用可能なモデルのリスト
 AVAILABLE_MODELS = ['random_forest', 'xgboost','random']
 # random予測の戦略
