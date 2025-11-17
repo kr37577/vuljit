@@ -4,7 +4,7 @@ import re
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import pandas as pd
 from google.cloud import storage
@@ -13,10 +13,17 @@ from calculate_patch_coverage_per_project import (
     DEFAULT_OUTPUT_BASE_DIRECTORY,
     compute_patch_coverage_for_patch_text,
 )
+from prepare_patch_coverage_inputs import (
+    load_canonical_repo_map,
+    load_repo_name_overrides,
+)
 
 # create_daily_diff.py の設定と揃える
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent.parent
+DEFAULT_MAIN_REPO_MAP = (
+    REPO_ROOT / "datasets" / "derived_artifacts" / "oss_fuzz_metadata" / "c_cpp_vulnerability_summary.csv"
+)
 
 DEFAULT_INPUT_CSV_DIRECTORY = Path(
     os.environ.get(
@@ -27,7 +34,7 @@ DEFAULT_INPUT_CSV_DIRECTORY = Path(
 DEFAULT_CLONED_REPOS_DIRECTORY = Path(
     os.environ.get(
         "VULJIT_CLONED_REPOS_DIR",
-        REPO_ROOT / "data" / "intermediate" / "cloned_repos",
+        REPO_ROOT / "datasets" / "raw" / "cloned_c_cpp_projects",
     )
 )
 
@@ -146,11 +153,16 @@ def process_project(
     output_dir: Path,
     parsing_dir: Optional[Path],
     workers: int,
+    canonical_repo_map: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> None:
     csv_file = input_dir / f"revisions_with_commit_date_{project_name}.csv"
     if not csv_file.is_file():
         print(f"エラー: 入力CSVが見つかりません: {csv_file}")
         return
+
+    canonical_entry = (canonical_repo_map or {}).get(project_name) if canonical_repo_map else None
+    canonical_repo_name = (canonical_entry or {}).get("repo_name")
+    canonical_repo_dir = (canonical_entry or {}).get("repo_dir_name")
 
     try:
         df = pd.read_csv(csv_file)
@@ -163,10 +175,36 @@ def process_project(
         print(f"エラー: '{csv_file}' に必要な列 {required_cols} がありません。")
         return
 
-    df = df[df['repo_name'] == project_name].copy()
+    if 'project' not in df.columns:
+        df['project'] = project_name
+        print("  - 注意: 'project' 列が存在しないため CSV 名から補完しました。")
+    else:
+        missing = df['project'].isna().sum()
+        if missing:
+            df.loc[df['project'].isna(), 'project'] = project_name
+            print(f"  - 注意: 'project' 列に {missing} 件の欠損があり補完しました。")
+
+    original_len = len(df)
+    df = df[df['project'] == project_name].copy()
+    if original_len != len(df):
+        sample_repo = ", ".join(sorted(set(df['repo_name']))[:5]) if not df.empty else "なし"
+        print(f"  - フィルタ: {original_len}行 -> {len(df)}行 (project='{project_name}', repo例: {sample_repo})")
     if df.empty:
         print(f"  - 対象プロジェクト '{project_name}' の行がCSVに存在しません ({csv_file}).")
         return
+
+    if canonical_repo_name:
+        filtered_df = df[df['repo_name'].astype(str).str.strip() == canonical_repo_name].copy()
+        removed_count = len(df) - len(filtered_df)
+        if removed_count:
+            print(f"  - フィルタ: canonical repo '{canonical_repo_name}' 以外の {removed_count} 行を除外しました。")
+        if filtered_df.empty:
+            print(f"  - 警告: canonical repo '{canonical_repo_name}' の行が存在しないためスキップします。")
+            return
+        if len(filtered_df) < 2:
+            print(f"  - 警告: canonical repo '{canonical_repo_name}' の行が2件未満です。差分を計算できません。")
+            return
+        df = filtered_df
 
     df = df.sort_values(by='date', kind='mergesort').reset_index(drop=True)
     if len(df) < 2:
@@ -223,8 +261,10 @@ def process_project(
                 print(f"  - スキップ: 日付 '{date_str}' は既に処理済みです。")
                 continue
 
-            repo_dir_name = get_repo_dir_name_from_url(str(current_row['url']))
-            repo_local_path = repos_dir / repo_dir_name
+            repo_name = str(current_row.get('repo_name') or '').strip()
+            repo_dir_name = repo_name or get_repo_dir_name_from_url(str(current_row['url']))
+            repo_local_name = canonical_repo_dir or repo_dir_name
+            repo_local_path = repos_dir / repo_local_name
 
             print(f"  - 日付: {date_str}")
 
@@ -331,8 +371,23 @@ def main() -> None:
     parser.add_argument(
         "--workers",
         type=int,
-        default=4,
+        default=2,
         help="カバレッジ計算を行う並列プロセス数 (既定: 4、1で逐次実行)",
+    )
+    parser.add_argument(
+        "--main-repo-map",
+        # default=str(DEFAULT_MAIN_REPO_MAP),
+        default=None,
+        help="プロジェクト -> canonical repo URL のCSV。'none' を指定すると無効化します。",
+    )
+    parser.add_argument(
+        "--repo-name-overrides",
+        help="canonical repo 名 -> ローカルディレクトリ名のマッピング (JSON またはCSV)",
+    )
+    parser.add_argument(
+        "--dry-run-missing-repos",
+        action="store_true",
+        help="パッチカバレッジを計算せず、canonical repo が欠けているプロジェクトを確認します。",
     )
     args = parser.parse_args()
 
@@ -354,6 +409,36 @@ def main() -> None:
     coverage_out_dir = Path(args.coverage_out or DEFAULT_OUTPUT_BASE_DIRECTORY)
     parsing_out_dir = Path(args.parsing_out) if args.parsing_out else None
 
+    canonical_map_path = args.main_repo_map
+    if canonical_map_path and canonical_map_path.lower() == "none":
+        canonical_map_path = None
+
+    repo_overrides = load_repo_name_overrides(args.repo_name_overrides)
+    canonical_repo_map: Dict[str, Dict[str, str]] = {}
+    if canonical_map_path:
+        canonical_repo_map = load_canonical_repo_map(canonical_map_path, repo_overrides)
+        if not canonical_repo_map:
+            print("⚠️  canonical repo map を読み込めませんでした。フィルタリングを無効化します。")
+    elif args.repo_name_overrides:
+        print("⚠️  canonical repo map が無効のため、--repo-name-overrides は無視されます。")
+
+    if args.dry_run_missing_repos:
+        if not canonical_repo_map:
+            print("canonical repo map が読み込めないため、欠損チェックを実行できません。")
+            return
+        missing = []
+        for project, entry in canonical_repo_map.items():
+            repo_dir = repos_dir / entry['repo_dir_name']
+            if not repo_dir.is_dir():
+                missing.append((project, entry['repo_dir_name'], entry['main_repo']))
+        if not missing:
+            print("✔ すべての canonical repo がローカルに存在します。")
+        else:
+            print("欠損している canonical repo:")
+            for project, dir_name, repo_url in missing:
+                print(f"  - {project}: {dir_name} ({repo_url})")
+        return
+
     for project in projects:
         process_project(
             project_name=project,
@@ -362,6 +447,7 @@ def main() -> None:
             output_dir=coverage_out_dir / project,
             parsing_dir=parsing_out_dir,
             workers=args.workers,
+            canonical_repo_map=canonical_repo_map,
         )
 
     print("\nすべての処理が完了しました。")

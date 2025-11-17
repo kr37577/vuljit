@@ -18,7 +18,7 @@ export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 
 # リポジトリルート推定と既定値設定
-export DEFAULT_REPOS="/work/riku-ka/metrics_culculator/cloned_repos"
+export DEFAULT_REPOS="/work/riku-ka/vuljit/datasets/raw/cloned_c_cpp_projects"
 export DEFAULT_COMMIT_OUT="/work/riku-ka/vuljit/datasets/derived_artifacts/patch_coverage_inputs"
 export DEFAULT_SRCMAP_ROOT="/work/riku-ka/vuljit/datasets/raw/srcmap_json"
 
@@ -29,4 +29,5 @@ echo "Patch Coverage inputsを準備..."
 "${PYTHON_EXEC}" "${PYTHON_SCRIPT_PATH}" \
   --srcmap-root "${DEFAULT_SRCMAP_ROOT}" \
   --repos "${DEFAULT_REPOS}" \
-  --commit-out "${DEFAULT_COMMIT_OUT}"
+  --commit-out "${DEFAULT_COMMIT_OUT}" \
+  --filter-to-main-repo

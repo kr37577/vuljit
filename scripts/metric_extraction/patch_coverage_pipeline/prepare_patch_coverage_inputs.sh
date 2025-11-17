@@ -12,13 +12,14 @@ if [[ ! -f "${PIPELINE_PY}" ]]; then
 fi
 
 DEFAULT_SRCMAP_ROOT="${DEFAULT_SRCMAP_ROOT:-${REPO_ROOT}/datasets/raw/srcmap_json}"
-DEFAULT_REPOS="${DEFAULT_REPOS:-${REPO_ROOT}/data/intermediate/cloned_repos}"
+DEFAULT_REPOS="${DEFAULT_REPOS:-${REPO_ROOT}/datasets/raw/cloned_c_cpp_projects}"
 DEFAULT_COMMIT_OUT="${DEFAULT_COMMIT_OUT:-${REPO_ROOT}/datasets/derived_artifacts/patch_coverage_inputs}"
 
 PY_ARGS=(
   --srcmap-root "${DEFAULT_SRCMAP_ROOT}"
   --repos "${DEFAULT_REPOS}"
   --commit-out "${DEFAULT_COMMIT_OUT}"
+  --filter-to-main-repo
 )
 
 "${PYTHON_BIN}" "${PIPELINE_PY}" "${PY_ARGS[@]}" "$@"

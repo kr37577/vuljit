@@ -23,7 +23,7 @@ USAGE
 
 DEFAULT_INPUT_DIR="/work/riku-ka/vuljit/datasets/derived_artifacts/patch_coverage_inputs"
 
-export VULJIT_CLONED_REPOS_DIR='/work/riku-ka/metrics_culculator/cloned_repos'
+export VULJIT_CLONED_REPOS_DIR='/work/riku-ka/vuljit/datasets/raw/cloned_c_cpp_projects'
 
 input_dir=""
 shell_script=""

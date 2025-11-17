@@ -252,18 +252,29 @@ def main():
             
             # 必要な列が存在するか確認
             required_cols = ['date', 'url', 'revision', 'repo_name']
-            if not all(col in df.columns for col in required_cols):
-                print(f"  - 警告: '{csv_file.name}' に必要な列がありません。スキップします。")
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                print(f"  - 警告: '{csv_file.name}' に必要な列 {missing_cols} がありません。スキップします。")
                 continue
+
+            if 'project' not in df.columns:
+                df['project'] = project_name
+                print("  - 注意: 'project' 列が存在しないため CSV 名から補完しました。")
+            else:
+                missing = df['project'].isna().sum()
+                if missing:
+                    df.loc[df['project'].isna(), 'project'] = project_name
+                    print(f"  - 注意: 'project' 列に {missing} 件の欠損があり補完しました。")
             
             # 対象プロジェクトの行に限定
             original_len = len(df)
-            df = df[df['repo_name'] == project_name].copy()
+            df = df[df['project'] == project_name].copy()
             if df.empty:
                 print(f"  - 警告: プロジェクト '{project_name}' に一致する行がありません。スキップします。")
                 continue
             if original_len != len(df):
-                print(f"  - フィルタ: {original_len}行 -> {len(df)}行 (repo_name='{project_name}')")
+                unique_repo_names = ", ".join(sorted(df['repo_name'].dropna().unique())[:5])
+                print(f"  - フィルタ: {original_len}行 -> {len(df)}行 (project='{project_name}', repo例: {unique_repo_names})")
 
             # 日付でソートされていることを保証する (重要)
             df = df.sort_values(by='date').reset_index(drop=True)
@@ -337,7 +348,8 @@ def main():
             for i in range(start_index, len(df)):
                 previous_row = df.iloc[i-1]
                 current_row = df.iloc[i]
-                repo_dir_name = get_repo_dir_name_from_url(str(current_row['url']))
+                repo_name = str(current_row.get('repo_name') or '').strip()
+                repo_dir_name = repo_name or get_repo_dir_name_from_url(str(current_row['url']))
                 repo_local_path = repos_path / repo_dir_name
                 date_str = str(current_row['date'])
                 tasks.append((i, repo_local_path, str(previous_row['revision']), str(current_row['revision']), date_str, project_output_path))

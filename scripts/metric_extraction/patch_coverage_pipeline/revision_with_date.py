@@ -73,9 +73,24 @@ def append_commit_dates(source_dir: Path | str,
                 print(f"  - 警告: '{csv_file}' に 'url' または 'revision' 列がありません。スキップします。")
                 continue
 
+            if 'project' not in df.columns:
+                df['project'] = project_name
+                print("  - 注意: 'project' 列が存在しないため CSV 名から補完しました。")
+            else:
+                missing_projects = df['project'].isna().sum()
+                if missing_projects:
+                    df.loc[df['project'].isna(), 'project'] = project_name
+                    print(f"  - 注意: 'project' 列に {missing_projects} 件の欠損があり、補完しました。")
+
+            def _resolve_repo_path(row: pd.Series) -> Path:
+                repo_name = str(row.get('repo_name', '') or '').strip()
+                if repo_name:
+                    return repos_path / repo_name
+                return repos_path / get_repo_dir_name_from_url(row['url'])
+
             df['commit_date'] = df.apply(
                 lambda row: get_commit_date(
-                    repos_path / get_repo_dir_name_from_url(row['url']),
+                    _resolve_repo_path(row),
                     row['revision']
                 ),
                 axis=1
@@ -89,6 +104,10 @@ def append_commit_dates(source_dir: Path | str,
             df.loc[~dt_parsed.isna(), 'commit_date'] = formatted[~dt_parsed.isna()]
 
             output_csv_path = output_path / f"revisions_with_commit_date_{project_name}.csv"
+            ordered_cols = ['project', 'date', 'repo_name', 'url', 'revision', 'commit_date']
+            existing_cols = [col for col in ordered_cols if col in df.columns]
+            remaining_cols = [col for col in df.columns if col not in existing_cols]
+            df = df[existing_cols + remaining_cols]
             df.to_csv(output_csv_path, index=False, encoding='utf-8-sig')
 
             stats[project_name] = len(df)
