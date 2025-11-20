@@ -3,11 +3,11 @@
 #SBATCH --output=logs/patch_coverage_%A_%a.out
 #SBATCH --error=errors/patch_coverage_%A_%a.err
 #SBATCH --array=1
-#SBATCH --time=4:00:00
-#SBATCH --partition=cluster_short
+#SBATCH --time=24:00:00
+#SBATCH --partition=cluster_low
 #SBATCH --ntasks=1
-#SBATCH --mem=50G
-#SBATCH --cpus-per-task=4
+#SBATCH --mem=250G
+#SBATCH --cpus-per-task=52
 
 
 # --- Python環境の準備 (pyenv を使用) ---

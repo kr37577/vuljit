@@ -16,7 +16,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 # プロジェクトルートを基点にパスを計算（相対パス運用）
 BASE_DIR = Path(__file__).resolve().parents[2]
 data_dir = BASE_DIR / "datasets" / "derived_artifacts" / "vulnerability_reports"
-raw_data_dir = BASE_DIR / "datasets" / "raw"
+raw_data_dir = BASE_DIR / "datasets" / "raw" / "oss_fuzz_selenium_html_pages"
 redirect_dir = BASE_DIR / "datasets" / "derived_artifacts" / "issue_redirect_mapping_selenium"
 
 # ★★★ 読み込むCSVファイル名を指定してください ★★★
@@ -147,7 +147,7 @@ try:
                 # wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "b-issue-page")))
                 # 例2: タイトルが表示される要素 (CSSクラスは仮)
                 wait.until(EC.presence_of_element_located(
-                    (By.CSS_SELECTOR, "body > header > div.top-bar-wrapper > b-top-bar-outlet > b-app-top-bar > b-app-logo > app-logo > a > h1")))
+                    (By.CSS_SELECTOR, "body")))
                 # 必要に応じて他の要素や条件で待機を追加
                 # time.sleep(2) # 必要であれば追加の固定待機
 

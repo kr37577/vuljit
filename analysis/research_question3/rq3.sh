@@ -70,3 +70,6 @@ echo "RQ3 simulation completed. Outputs are available under: ${DATASETS_ROOT}/de
 
 run_step "Combine simulation results" \
   "${PYTHON_BIN}" "${SCRIPT_DIR}/combine_strategy4_modes.py" \
+
+run_step "Result of RQ3" \
+  "${PYTHON_BIN}" "${SCRIPT_DIR}/rq3_result.py" \

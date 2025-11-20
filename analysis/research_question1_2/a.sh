@@ -9,7 +9,6 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=40G
 #SBATCH --cpus-per-task=8
-#SBATCH --mail-user=kato.riku.ks5@naist.ac.jp
 #SBATCH --mail-type=END,FAIL 
 
 # PYTHON_EXEC="${PYTHON_EXEC:-python3}"
@@ -19,13 +18,13 @@ export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
-script_dir="/work/riku-ka/vuljit/RQ1_2_culculate"
+script_dir="/work/riku-ka/vuljit/analysis/research_question1_2"
 PYTHON_SCRIPT_PATH_1="${script_dir}/analyze_comparison.py"
 PYTHON_SCRIPT_PATH_2="${script_dir}/analyze_trends_comparison.py"
 
 
 echo "====== Starting Slurm Task ${SLURM_ARRAY_TASK_ID} ======"
-python ${PYTHON_SCRIPT_PATH_1} --top-feature-count 10
+python ${PYTHON_SCRIPT_PATH_1} 
 echo "---------------------------------"
 echo "====== Starting Slurm Task ${SLURM_ARRAY_TASK_ID} ======"
 python ${PYTHON_SCRIPT_PATH_2}  

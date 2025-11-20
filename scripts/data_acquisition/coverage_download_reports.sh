@@ -9,7 +9,6 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=210G
 #SBATCH --cpus-per-task=52
-#SBATCH --mail-user=kato.riku.ks5@naist.ac.jp
 #SBATCH --mail-type=END,FAIL 
 
 PYTHON_EXEC="${PYTHON_EXEC:-python3}"

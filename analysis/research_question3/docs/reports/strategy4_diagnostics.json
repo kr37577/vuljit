@@ -1,82 +1,82 @@
 {
   "model": {
     "version": "linear_regression_v1",
-    "intercept": 4.796699823024896,
+    "intercept": 4.508983369367997,
     "coefficients": {
-      "VCC_s1_nb_added_sizeof": -0.0006181577688121803,
-      "VCC_s2_nb_removed_sizeof": 0.0014523265748622467,
-      "VCC_s3_diff_sizeof": -0.002070484343737157,
-      "VCC_s4_sum_sizeof": 0.0008341688059886991,
-      "VCC_s5_nb_added_continue": 0.10713597762194588,
-      "VCC_s6_nb_removed_continue": -0.08737388317059423,
-      "VCC_s7_nb_added_break": 0.003496868686572752,
-      "VCC_s8_nb_removed_break": -0.0012475211747738808,
-      "VCC_s9_nb_added_INTMAX": 0.03692660059805487,
-      "VCC_s10_nb_removed_INTMAX": -0.05833687200102817,
-      "VCC_s11_nb_added_goto": -0.01087783428660111,
-      "VCC_s12_nb_removed_goto": 0.01223926897699985,
-      "VCC_s13_nb_added_define": -0.00039314865869640066,
-      "VCC_s14_nb_removed_define": -7.83906705374357e-05,
-      "VCC_s15_nb_added_struct": 4.03328597111674e-05,
-      "VCC_s16_nb_removed_struct": 0.0004493016408860795,
-      "VCC_s17_diff_struct": -0.00040896878117042956,
-      "VCC_s18_sum_struct": 0.0004896345005967612,
-      "VCC_s19_nb_added_offset": 0.008345185306193353,
-      "VCC_s20_nb_removed_offset": -0.008485605287211345,
-      "VCC_s21_nb_added_void": 0.00030129655951124934,
-      "VCC_s22_nb_removed_void": -0.0017906101583672063,
-      "VCC_s23_diff_void": 0.002091906717875819,
-      "VCC_s24_sum_void": -0.0014893135988529732,
-      "VCC_f1_sum_file_change": 0.0029824966392784785,
-      "VCC_f2_nb_added_loop": -0.0008781443501437378,
-      "VCC_f3_nb_removed_loop": 0.0006336770603372621,
-      "VCC_f4_diff_loop": -0.0015118214104924976,
-      "VCC_f5_sum_loop": -0.0002444672897996686,
-      "VCC_f6_nb_added_if": 4.7162434883826765e-05,
-      "VCC_f7_nb_removed_if": -0.0002707626482281872,
-      "VCC_f8_diff_if": 0.000317925083117121,
-      "VCC_f9_sum_if": -0.00022360021336679387,
-      "VCC_f10_nb_added_line": -5.234372587595119e-06,
-      "VCC_f11_nb_removed_line": -1.8088610744277506e-06,
-      "VCC_f12_diff_line": -3.4255118772311827e-06,
-      "VCC_f13_sum_line": -7.043234186746418e-06,
-      "VCC_f14_nb_added_paren": 4.6057329933235636e-07,
-      "VCC_f15_nb_removed_paren": 2.3645957864248945e-06,
-      "VCC_f16_diff_paren": -1.9040223693256308e-06,
-      "VCC_f17_sum_paren": 2.825168918307863e-06,
-      "VCC_f18_nb_added_bool": 7.052254783569689e-05,
-      "VCC_f19_nb_removed_bool": 4.121276690412061e-05,
-      "VCC_f20_diff_bool": 2.9309780901081578e-05,
-      "VCC_f21_sum_bool": 0.0001117353147169417,
-      "VCC_f22_nb_added_assignement": 1.849197168924538e-05,
-      "VCC_f23_nb_removed_assignement": 2.853907182728821e-07,
-      "VCC_f24_diff_assignement": 1.8206580919929993e-05,
-      "VCC_f25_sum_assignement": 1.8777362299472744e-05,
-      "VCC_f26_nb_added_function": -0.002908569541525796,
-      "VCC_f27_nb_removed_function": 0.0028522790818164942,
-      "VCC_f28_diff_function": -0.0057608486233557445,
-      "VCC_f29_sum_function": -5.6290459709461976e-05,
-      "VCC_w1": -0.15288929541139712,
-      "VCC_w2": -0.13341021930052321,
-      "VCC_w3": -0.016354527232498355,
-      "VCC_w4": -0.09545962088561485,
-      "VCC_w5": -0.0935278515552577,
-      "VCC_w6": -0.09460345143375329,
-      "VCC_w7": 0.02318645028652669,
-      "VCC_w8": -0.15509908517166368,
-      "VCC_w9": -0.09463335349537443,
-      "VCC_w10": -0.011446473840629759,
-      "project_total_function_percent": 0.11681364109613591,
-      "project_total_line_percent": -0.3388453407549511,
-      "project_total_region_percent": 0.21770697367037345,
-      "project_total_branch_percent": -0.010205299698160003,
-      "project_total_instantiation_percent": -0.04545149114663555,
-      "patch_coverage_recalculated": -0.03145666357874705,
-      "project_total_function_percent_delta": -0.09098233915151821,
-      "project_total_line_percent_delta": -0.36567017399977675,
-      "project_total_region_percent_delta": 0.5936840281519692,
-      "project_total_branch_percent_delta": 0.07475034062781967,
-      "project_total_instantiation_percent_delta": 0.05664046647736348,
+      "VCC_s1_nb_added_sizeof": -0.0008634470463491638,
+      "VCC_s2_nb_removed_sizeof": 0.0018614290477635643,
+      "VCC_s3_diff_sizeof": -0.0027248760940908282,
+      "VCC_s4_sum_sizeof": 0.0009979820014233212,
+      "VCC_s5_nb_added_continue": 0.13699502188276438,
+      "VCC_s6_nb_removed_continue": -0.10513092954897524,
+      "VCC_s7_nb_added_break": 0.0014143908286406732,
+      "VCC_s8_nb_removed_break": -0.0016745879344268544,
+      "VCC_s9_nb_added_INTMAX": 0.020376223671752902,
+      "VCC_s10_nb_removed_INTMAX": -0.0511012736906393,
+      "VCC_s11_nb_added_goto": -0.011225697124117686,
+      "VCC_s12_nb_removed_goto": 0.011928433593046624,
+      "VCC_s13_nb_added_define": -0.00046342950931089165,
+      "VCC_s14_nb_removed_define": 0.0005627033518132568,
+      "VCC_s15_nb_added_struct": -0.0002163691499269607,
+      "VCC_s16_nb_removed_struct": -0.00022000683825289247,
+      "VCC_s17_diff_struct": 3.6376883318367526e-06,
+      "VCC_s18_sum_struct": -0.00043637598817783396,
+      "VCC_s19_nb_added_offset": 0.008724325907075482,
+      "VCC_s20_nb_removed_offset": -0.009836196468309702,
+      "VCC_s21_nb_added_void": 0.0007481515209691453,
+      "VCC_s22_nb_removed_void": -0.002174861474227144,
+      "VCC_s23_diff_void": 0.002923012995196775,
+      "VCC_s24_sum_void": -0.0014267099532794536,
+      "VCC_f1_sum_file_change": 0.003078889501451215,
+      "VCC_f2_nb_added_loop": -0.0017099048637606584,
+      "VCC_f3_nb_removed_loop": 0.0020503050716955823,
+      "VCC_f4_diff_loop": -0.0037602099354490937,
+      "VCC_f5_sum_loop": 0.00034040020794992923,
+      "VCC_f6_nb_added_if": 0.00018014427276244124,
+      "VCC_f7_nb_removed_if": -0.0002542166038935062,
+      "VCC_f8_diff_if": 0.00043436087665604806,
+      "VCC_f9_sum_if": -7.407233113063127e-05,
+      "VCC_f10_nb_added_line": 2.1261734934399645e-06,
+      "VCC_f11_nb_removed_line": -1.1937662858618747e-05,
+      "VCC_f12_diff_line": 1.4063836230419902e-05,
+      "VCC_f13_sum_line": -9.811489981598025e-06,
+      "VCC_f14_nb_added_paren": -7.397669822772901e-06,
+      "VCC_f15_nb_removed_paren": 3.0116235139683936e-05,
+      "VCC_f16_diff_paren": -3.751390487823081e-05,
+      "VCC_f17_sum_paren": 2.271856536829875e-05,
+      "VCC_f18_nb_added_bool": 0.00016062735888137947,
+      "VCC_f19_nb_removed_bool": -0.00015826531259485917,
+      "VCC_f20_diff_bool": 0.0003188926714800325,
+      "VCC_f21_sum_bool": 2.36204629822101e-06,
+      "VCC_f22_nb_added_assignement": 2.4291304785313377e-05,
+      "VCC_f23_nb_removed_assignement": 1.0402951102225257e-05,
+      "VCC_f24_diff_assignement": 1.3888353627505845e-05,
+      "VCC_f25_sum_assignement": 3.469425592068226e-05,
+      "VCC_f26_nb_added_function": -0.0031003688284691536,
+      "VCC_f27_nb_removed_function": 0.0030936237514866405,
+      "VCC_f28_diff_function": -0.00619399257995136,
+      "VCC_f29_sum_function": -6.7450769960439305e-06,
+      "VCC_w1": -0.11827358682896871,
+      "VCC_w2": -0.11142367970442957,
+      "VCC_w3": 0.03748138030534338,
+      "VCC_w4": -0.04649024958186683,
+      "VCC_w5": -0.04603948802830378,
+      "VCC_w6": -0.06254359077088702,
+      "VCC_w7": 0.017187529983856017,
+      "VCC_w8": -0.23438005437565834,
+      "VCC_w9": -0.04348972122997513,
+      "VCC_w10": -0.04122928473602237,
+      "project_total_function_percent": 0.09721324760325847,
+      "project_total_line_percent": -0.3040773433534574,
+      "project_total_region_percent": 0.14969542779876155,
+      "project_total_branch_percent": -0.020761111097352958,
+      "project_total_instantiation_percent": -0.03208757336805956,
+      "patch_coverage_recalculated": 0.11248806658456574,
+      "project_total_function_percent_delta": -0.056162916145694367,
+      "project_total_line_percent_delta": -0.5015012287156133,
+      "project_total_region_percent_delta": 0.7191769585187457,
+      "project_total_branch_percent_delta": 0.06840115076461195,
+      "project_total_instantiation_percent_delta": 0.02056085462612532,
       "patch_coverage_recalculated_delta": 0.0
     },
     "feature_order": [
@@ -168,101 +168,101 @@
   "metrics": {
     "evaluation_mode": "leave_one_project_out",
     "lopo_overall": {
-      "mae": 6.262616947313031,
-      "rmse": 53.25625462688551,
-      "mape": 2.5616973225776745,
-      "count": 6229.0
+      "mae": 6.693643875035798,
+      "rmse": 56.44399074700517,
+      "mape": 2.316908637339238,
+      "count": 5656.0
     },
     "lopo_project_metrics": {
       "arrow": {
-        "mae": 2.7828910332406185,
-        "rmse": 2.944819049208796,
-        "mape": 0.693497833302896,
-        "count": 280.0
+        "mae": 2.8126745036024507,
+        "rmse": 3.466770085846828,
+        "mape": 2.148212555048769,
+        "count": 172.0
       },
       "c-blosc2": {
-        "mae": 5.609599916205092,
-        "rmse": 13.495258263822146,
-        "mape": 0.950313755214961,
-        "count": 38.0
+        "mae": 6.343879572565795,
+        "rmse": 12.113926250522914,
+        "mape": 1.0876563759323425,
+        "count": 40.0
       },
       "ghostscript": {
-        "mae": 38.197827978592635,
-        "rmse": 366.1469453462773,
-        "mape": 0.9459515126602753,
-        "count": 124.0
+        "mae": 22.80929144662971,
+        "rmse": 273.71818550077495,
+        "mape": 0.8007199224239454,
+        "count": 222.0
       },
       "harfbuzz": {
-        "mae": 10.381199275706194,
-        "rmse": 10.551010576671901,
-        "mape": 3.3321132742143535,
-        "count": 544.0
+        "mae": 10.887540350898142,
+        "rmse": 14.60882978602295,
+        "mape": 4.556825871641954,
+        "count": 472.0
       },
       "icu": {
-        "mae": 2.1728074042035517,
-        "rmse": 2.4488977136360495,
-        "mape": 0.6142596134484191,
-        "count": 128.0
+        "mae": 3.368318236789971,
+        "rmse": 4.122130146843423,
+        "mape": 2.119192287315046,
+        "count": 87.0
       },
       "libjxl": {
-        "mae": 8.000353913613013,
-        "rmse": 15.09242174395253,
-        "mape": 0.9782598277224623,
-        "count": 121.0
+        "mae": 9.915170795988066,
+        "rmse": 16.67062058778253,
+        "mape": 0.9811835504428604,
+        "count": 95.0
       },
       "libxml2": {
-        "mae": 4.462614487663164,
-        "rmse": 23.982484107782902,
-        "mape": 0.9664215103772876,
-        "count": 84.0
+        "mae": 5.427063204197922,
+        "rmse": 22.478474027780344,
+        "mape": 0.6808492971723386,
+        "count": 97.0
       },
       "mruby": {
-        "mae": 6.863715019002821,
-        "rmse": 10.481165235100564,
-        "mape": 0.5470670862733015,
-        "count": 162.0
+        "mae": 9.05187906989302,
+        "rmse": 11.55408095193641,
+        "mape": 0.8762185154561525,
+        "count": 156.0
       },
       "ndpi": {
-        "mae": 6.23041556638437,
-        "rmse": 25.297494647318384,
-        "mape": 3.1524969474108357,
-        "count": 202.0
+        "mae": 5.579098441475983,
+        "rmse": 24.18291880864732,
+        "mape": 3.123743934719792,
+        "count": 212.0
       },
       "openthread": {
-        "mae": 6.0054557292036606,
-        "rmse": 9.917491337500895,
-        "mape": 3.039105568832686,
-        "count": 650.0
+        "mae": 5.5870294900977235,
+        "rmse": 9.021445385310624,
+        "mape": 0.7791344721285325,
+        "count": 541.0
       },
       "php": {
-        "mae": 4.230876511681653,
-        "rmse": 20.090126936618596,
-        "mape": 2.122130234119304,
-        "count": 752.0
+        "mae": 5.45961185704185,
+        "rmse": 32.28610584392546,
+        "mape": 2.359960548085996,
+        "count": 643.0
       },
       "poppler": {
-        "mae": 2.7092891263227825,
-        "rmse": 2.870827503274788,
+        "mae": 6.612992579160519,
+        "rmse": 7.382356714076789,
         "mape": NaN,
-        "count": 29.0
+        "count": 44.0
       },
       "serenity": {
-        "mae": 5.885818395436628,
-        "rmse": 14.177337614701578,
-        "mape": 5.163731163117437,
-        "count": 829.0
+        "mae": 5.3224439745226,
+        "rmse": 14.482255809538058,
+        "mape": 4.370977726419162,
+        "count": 736.0
       },
       "wireshark": {
-        "mae": 5.574931288207495,
-        "rmse": 11.293905084693321,
-        "mape": 2.931448439583883,
-        "count": 1447.0
+        "mae": 7.102467857529788,
+        "rmse": 10.649233342226326,
+        "mape": 2.1966793752928946,
+        "count": 1467.0
       },
       "wolfssl": {
-        "mae": 4.209859676209142,
-        "rmse": 6.0274096774914225,
-        "mape": 1.1136589403870203,
-        "count": 839.0
+        "mae": 2.0865127997512083,
+        "rmse": 5.344424595671059,
+        "mape": 0.9117154125731711,
+        "count": 672.0
       }
     },
     "lopo_heldout_projects": [
@@ -284,65 +284,65 @@
     ],
     "fold_metrics": {
       "fold-1": {
-        "mae": 7.354973740733413,
-        "rmse": 19.146724963891785,
-        "mape": 4.2259297679079735,
-        "count": 439.0
+        "mae": 8.077011327500456,
+        "rmse": 21.679901647959856,
+        "mape": 3.7066092890152498,
+        "count": 417.0
       },
       "fold-2": {
-        "mae": 6.678830185253678,
-        "rmse": 17.32722038758596,
-        "mape": 1.4753318030916684,
-        "count": 607.0
+        "mae": 7.8368863510569975,
+        "rmse": 27.24489269034336,
+        "mape": 1.5766621908748109,
+        "count": 571.0
       },
       "fold-3": {
-        "mae": 4.953537543445845,
-        "rmse": 12.345015421963828,
-        "mape": 1.6035429767560945,
-        "count": 732.0
+        "mae": 5.321316404164843,
+        "rmse": 7.9820682237191685,
+        "mape": 1.78189154846198,
+        "count": 663.0
       },
       "fold-4": {
-        "mae": 10.188918151053146,
-        "rmse": 144.71705990556353,
-        "mape": 2.5374531792492774,
-        "count": 792.0
+        "mae": 10.932112575525592,
+        "rmse": 151.6536783481908,
+        "mape": 1.4829948282135637,
+        "count": 723.0
       },
       "fold-5": {
-        "mae": 6.101026627338317,
-        "rmse": 19.617555069282755,
-        "mape": 1.6472624896791326,
-        "count": 758.0
+        "mae": 6.370280960156245,
+        "rmse": 20.904361752258918,
+        "mape": 1.3242377493584268,
+        "count": 670.0
       },
       "fold-6": {
-        "mae": 5.5141371208730146,
-        "rmse": 14.32956289399465,
-        "mape": 2.427197906364345,
-        "count": 751.0
+        "mae": 5.674206431087206,
+        "rmse": 21.374247239647207,
+        "mape": 2.192711428398132,
+        "count": 673.0
       },
       "fold-7": {
-        "mae": 5.133930233951837,
-        "rmse": 7.726283238188817,
-        "mape": 2.60745453606605,
-        "count": 754.0
+        "mae": 5.428864284594423,
+        "rmse": 8.64191247281027,
+        "mape": 3.793580992482052,
+        "count": 688.0
       },
       "fold-8": {
-        "mae": 5.678815312223942,
-        "rmse": 12.042055744323067,
-        "mape": 5.728875445157837,
-        "count": 776.0
+        "mae": 5.786468452564381,
+        "rmse": 9.006007287050199,
+        "mape": 5.090057142597925,
+        "count": 684.0
       },
       "fold-9": {
-        "mae": 4.819202698003126,
-        "rmse": 5.929041103740764,
+        "mae": 4.946193189300823,
+        "rmse": 6.261863698042069,
         "mape": NaN,
-        "count": 620.0
+        "count": 567.0
       }
     },
     "overall_performance": {
-      "mae": 6.262616947313031,
-      "rmse": 53.25625462688551,
-      "mape": 2.5616973225776745,
-      "count": 6229.0
+      "mae": 6.693643875035798,
+      "rmse": 56.44399074700517,
+      "mape": 2.316908637339238,
+      "count": 5656.0
     },
     "model_version": "linear_regression_v1",
     "feature_signature": "1d2d87d6d251cdfd62040c2e3590be6aee34ce239b8ea23ea6fec136e80fbef9",
@@ -428,7 +428,7 @@
       "project_total_instantiation_percent_delta",
       "patch_coverage_recalculated_delta"
     ],
-    "train_mae": 2.8583595191653512,
+    "train_mae": 3.6730728896969556,
     "train_projects": 15
   },
   "folds": {
@@ -437,63 +437,63 @@
       "train_window_end": "2021-09-25T00:00:00+00:00",
       "validation_window_start": "2018-12-31T00:00:00+00:00",
       "validation_window_end": "2022-03-31T00:00:00+00:00",
-      "rows": 439
+      "rows": 417
     },
     "fold-2": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2022-03-31T00:00:00+00:00",
       "validation_window_start": "2019-07-10T00:00:00+00:00",
       "validation_window_end": "2022-12-02T00:00:00+00:00",
-      "rows": 607
+      "rows": 571
     },
     "fold-3": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2022-12-02T00:00:00+00:00",
       "validation_window_start": "2020-03-15T00:00:00+00:00",
       "validation_window_end": "2023-04-13T00:00:00+00:00",
-      "rows": 732
+      "rows": 663
     },
     "fold-4": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2023-04-13T00:00:00+00:00",
       "validation_window_start": "2020-11-19T00:00:00+00:00",
       "validation_window_end": "2023-10-01T00:00:00+00:00",
-      "rows": 792
+      "rows": 723
     },
     "fold-5": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2023-10-01T00:00:00+00:00",
       "validation_window_start": "2021-04-23T00:00:00+00:00",
       "validation_window_end": "2024-02-07T00:00:00+00:00",
-      "rows": 758
+      "rows": 670
     },
     "fold-6": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2024-02-07T00:00:00+00:00",
       "validation_window_start": "2022-03-04T00:00:00+00:00",
       "validation_window_end": "2024-05-21T00:00:00+00:00",
-      "rows": 751
+      "rows": 673
     },
     "fold-7": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2024-05-21T00:00:00+00:00",
       "validation_window_start": "2022-12-15T00:00:00+00:00",
       "validation_window_end": "2024-07-24T00:00:00+00:00",
-      "rows": 754
+      "rows": 688
     },
     "fold-8": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2024-07-24T00:00:00+00:00",
       "validation_window_start": "2023-05-16T00:00:00+00:00",
       "validation_window_end": "2025-02-21T00:00:00+00:00",
-      "rows": 776
+      "rows": 684
     },
     "fold-9": {
       "train_window_start": "2018-08-24T00:00:00+00:00",
       "train_window_end": "2025-02-21T00:00:00+00:00",
       "validation_window_start": "2023-12-29T00:00:00+00:00",
       "validation_window_end": "2025-06-02T00:00:00+00:00",
-      "rows": 620
+      "rows": 567
     }
   }
 }

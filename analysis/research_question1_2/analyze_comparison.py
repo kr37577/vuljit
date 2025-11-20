@@ -499,7 +499,7 @@ def main():
     parser.add_argument('--positives-metric', type=str, default='MCC', help='陽性上位プロジェクトで併せて出力する特定メトリクス名（例: MCC）')
     parser.add_argument('--plot-positives-top', action='store_true', help='陽性上位N件の棒グラフも保存する')
     parser.add_argument('--visualize-positives-top-n', type=int, default=10, help='陽性日数上位N件の結果を追加で可視化する（0で無効）')
-    parser.add_argument('--top-feature-count', type=int, default=20, help='特徴量重要度の可視化で表示する特徴量数')
+    parser.add_argument('--top-feature-count', type=int, default=10, help='特徴量重要度の可視化で表示する特徴量数')
     parser.add_argument('--output-dir', type=str, default=None, help='結果ファイルを保存するディレクトリ（既定: datasets/derived_artifacts/rq1_rq2/evaluation_summary_comparison）')
     args = parser.parse_args()
     
