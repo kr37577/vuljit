@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
-"""Generate aggregate RQ3 results table.
+"""Generate publication-ready RQ3 efficiency table.
 
-Reads ``strategy_wasted_builds.csv`` from the combined simulation outputs and
-emits ``rq3_result.csv`` with the requested columns:
-- Strategy
-- Detection vulnerability rate (%)
-- Detection vulnerability trigger
-- Triggers total
-- Additional builds total
-- Builds per detection
+Reads ``strategy_wasted_builds.csv`` and emits ``rq3_result.csv`` with columns:
+- Strategy (labelled S1–S5)
+- Total Cost (Builds) -> additional_builds_total
+- Found vulnerabilities -> vulnerabilities_detected_additional
+- Effective Trigger Rate (%) -> detection_vulnerability_trigger
+- Cost per vulnerability -> Total Cost / Found vulnerabilities
 """
 
 from __future__ import annotations
@@ -21,6 +19,22 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "datasets" / "derived_artifacts
 INPUT_CSV = DATA_DIR / "strategy_wasted_builds.csv"
 OUTPUT_CSV = DATA_DIR / "rq3_result.csv"
 
+STRATEGY_LABELS = {
+    "strategy1_median": "S1 Median",
+    "strategy2_random": "S2 Random",
+    "strategy3_line_proportional": "S3 Line-Proportional",
+    "strategy4_regression_simple": "S4 Simple Regression",
+    "strategy5_regression_multi": "S5 Multi Regression",
+}
+
+OUTPUT_FIELDS = [
+    "Strategy",
+    "Total Cost (Builds)",
+    "Found vulnerabilities",
+    "Effective Trigger Rate (%)",
+    "Cost per vulnerability",
+]
+
 
 def main() -> None:
     if not INPUT_CSV.is_file():
@@ -30,30 +44,30 @@ def main() -> None:
     with INPUT_CSV.open() as fh:
         reader = csv.DictReader(fh)
         for row in reader:
-            detections = int(float(row["detections_with_additional"]))
-            additional_builds = float(row["additional_builds_total"])
-            builds_per_detection = additional_builds / detections if detections else 0.0
+            strategy_key = row.get("strategy", "").strip()
+            if strategy_key not in STRATEGY_LABELS:
+                continue
+
+            total_cost = float(row["additional_builds_total"])
+            found_vulns = int(float(row["vulnerabilities_detected_additional"]))
+            trigger_rate = float(row["detection_vulnerability_trigger"])
+            cost_per_vuln = total_cost / found_vulns if found_vulns else 0.0
+
             rows.append(
                 {
-                    "Strategy": row["strategy"],
-                    "Detection vulnerability rate (%)": float(row["detection_vulnerability_rate"]) * 100,
-                    "Detection vulnerability trigger": int(float(row["detection_vulnerability_trigger"])),
-                    "Triggers total": int(float(row["triggers_total"])),
-                    "Additional builds total": additional_builds,
-                    "Builds per detection": builds_per_detection,
+                    "Strategy": STRATEGY_LABELS[strategy_key],
+                    "Total Cost (Builds)": total_cost,
+                    "Found vulnerabilities": found_vulns,
+                    "Effective Trigger Rate (%)": trigger_rate,
+                    "Cost per vulnerability": cost_per_vuln,
                 }
             )
 
-    fieldnames = [
-        "Strategy",
-        "Detection vulnerability rate (%)",
-        "Detection vulnerability trigger",
-        "Triggers total",
-        "Additional builds total",
-        "Builds per detection",
-    ]
+    # Preserve the intended S1–S5 order.
+    rows.sort(key=lambda record: list(STRATEGY_LABELS.values()).index(record["Strategy"]))
+
     with OUTPUT_CSV.open("w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer = csv.DictWriter(fh, fieldnames=OUTPUT_FIELDS)
         writer.writeheader()
         writer.writerows(rows)
 
