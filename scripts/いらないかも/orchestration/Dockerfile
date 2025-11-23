@@ -10,11 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY vuljit/requirements.txt /app/vuljit/requirements.txt
-RUN pip install --no-cache-dir -r /app/vuljit/requirements.txt
+COPY pyproject.toml README.md ./
+COPY .env.example ./.env.example
+COPY plan.md ./plan.md
+COPY replication ./replication
+COPY vuljit ./vuljit
+COPY scripts ./scripts
+COPY analysis ./analysis
 
-COPY vuljit /app/vuljit
+RUN pip install --no-cache-dir -U pip \
+    && pip install --no-cache-dir -e .
 
 ENTRYPOINT ["python", "-m", "vuljit"]
 CMD ["--help"]
-

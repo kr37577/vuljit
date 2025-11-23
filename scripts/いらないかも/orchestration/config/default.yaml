@@ -1,0 +1,18 @@
+# Default configuration for paths and parameters
+
+paths:
+  data_dir: ./datasets
+  outputs_dir: ./datasets/derived_artifacts
+  metrics_dir: ./datasets/derived_artifacts/commit_metrics
+  intermediate_dir: ./datasets/derived_artifacts/intermediate
+  cloned_repos_dir: ./datasets/raw/cloned_c_cpp_projects
+  srcmap_dir: ./datasets/raw/srcmap_json
+  coverage_dir: ./datasets/raw/coverage_report
+
+downloads:
+  csv: ./datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv
+  start_date: 20160101
+  end_date: 20250802
+  workers: 8
+  coverage_files:
+    - summary.json
