@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO=/work/riku-ka/vuljit
-RQ3="$REPO/analysis/research_question3"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+RQ3="${SCRIPT_DIR}"
 
 python "$RQ3/extract_build_counts.py" \
   --projects-dir "$REPO/datasets/raw/oss-fuzz/projects" \

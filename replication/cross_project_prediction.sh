@@ -25,7 +25,7 @@ if [[ -f "${MAPPING_FILE}" ]]; then
     project="${project#\"}"
     if [[ -n "${project}" && "${project}" != "project" ]]; then
       projects+=("${project}")
-    }
+    fi
   done < <(tail -n +2 "${MAPPING_FILE}")
 else
   echo "[warn] mapping file not found: ${MAPPING_FILE}. Falling back to directory names under ${DATA_DIR}"

@@ -21,7 +21,7 @@ Usage: $(basename "$0") [-c csv] [-d clone_dir] [-s since] [-u until] [-r runner
 
 If both -r and -C are provided, the template is executed with placeholders expanded.
 Example:
-  $(basename "$0") -r "/work/riku-ka/vuljit/scripts/metric_extraction/cluster.sh" \\
+  $(basename "$0") -r "\${REPO_ROOT}/scripts/metric_extraction/cluster.sh" \\
     -C "sbatch {runner} --since 20180101 --until 20251001 {project} {repo}" -- --force
 EOF
 }

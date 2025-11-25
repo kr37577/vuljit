@@ -371,7 +371,7 @@ def main() -> None:
     parser.add_argument(
         "--workers",
         type=int,
-        default=52,
+        default=4,
         help="カバレッジ計算を行う並列プロセス数 (既定: 4、1で逐次実行)",
     )
     parser.add_argument(

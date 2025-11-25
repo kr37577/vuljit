@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
-vuljit_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+vuljit_dir="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PYTHON_EXEC="${PYTHON_EXEC:-python3}"  # 必要に応じて上書き
 
 
-PYTHON_SCRIPT_PATH_1="${vuljit_dir}/scripts/metric_extraction/build_commit_metrics_pipeline.py"
+PYTHON_SCRIPT_PATH_1="${SCRIPT_DIR}/build_commit_metrics_pipeline.py"
 usage() {
   cat <<EOF
 Usage: $(basename "$0") [-s since] [-u until] <project_name> <repo_path> [additional args...]

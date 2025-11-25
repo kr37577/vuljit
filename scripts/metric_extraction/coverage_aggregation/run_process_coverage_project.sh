@@ -17,7 +17,7 @@ Usage:
   <project_dir>  : 日付ディレクトリにJSONが格納された解凍済みプロジェクト
   <projects_root>: 複数プロジェクトの親ディレクトリ
   [output_root]  : CSVの出力ルート（省略時: VULJIT_COVERAGE_METRICS_DIR または
-                   /work/riku-ka/vuljit/datasets/derived_artifacts/coverage_metrics）
+                   リポジトリルート/datasets/derived_artifacts/coverage_metrics）
 
 Examples:
   # 単一プロジェクトを処理
@@ -27,7 +27,7 @@ Examples:
   run_process_coverage_project.sh /path/to/coverage/project_a /tmp/coverage_metrics
 
   # 複数プロジェクトをまとめて処理
-  run_process_coverage_project.sh --all /work/riku-ka/vuljit/datasets/raw/coverage_report
+  run_process_coverage_project.sh --all /path/to/coverage_report
 USAGE
 }
 
@@ -65,11 +65,11 @@ if [[ $# -eq 2 ]]; then
   OUT_ROOT_ARG="$2"
 fi
 
-DEFAULT_OUT_ROOT="${VULJIT_COVERAGE_METRICS_DIR:-/work/riku-ka/vuljit/datasets/derived_artifacts/coverage_metrics}"
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+DEFAULT_OUT_ROOT="${VULJIT_COVERAGE_METRICS_DIR:-${REPO_ROOT}/datasets/derived_artifacts/coverage_metrics}"
 OUT_ROOT="${OUT_ROOT_ARG:-${DEFAULT_OUT_ROOT}}"
 mkdir -p "${OUT_ROOT}"
-
-SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 
 echo "Preparing Python environment via pyenv..."
 export PYENV_ROOT="${PYENV_ROOT:-$HOME/.pyenv}"
