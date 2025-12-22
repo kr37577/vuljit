@@ -146,13 +146,13 @@ def main():
                          palette=COLOR_PALETTE, hue_order=HUE_ORDER)
         
         # グラフのタイトルとラベルを設定
-        ax.set_title(f'Comparison of Average {metric} Across Experiments', fontsize=18, weight='bold')
-        ax.set_xlabel('Experiment', fontsize=14)
-        ax.set_ylabel(f'Average Score (Mean {metric})', fontsize=14)
+        ax.set_title(f'Comparison of Average {metric} Across Experiments', fontsize=22, weight='bold')
+        ax.set_xlabel('Experiment', fontsize=16)
+        ax.set_ylabel(f'Average Score (Mean {metric})', fontsize=16)
 
         # X軸のラベルを回転
-        plt.xticks(rotation=45, ha='right', fontsize=12)
-        plt.yticks(fontsize=12)
+        plt.xticks(rotation=45, ha='right', fontsize=14)
+        plt.yticks(fontsize=14)
 
         # Y軸の範囲を自動調整し、少し余裕を持たせる
         if not metric_df.empty:
@@ -185,7 +185,7 @@ def main():
                                 xytext=(0, -9), textcoords='offset points',
                                 fontsize=9, color='black')
         
-        ax.legend(title='Model', fontsize=11)
+        ax.legend(title='Model', fontsize=13)
         plt.grid(axis='y', linestyle='--', alpha=0.7)
         plt.tight_layout()
         
@@ -248,11 +248,11 @@ def main():
                 sub['model'] = pd.Categorical(sub['model'], categories=HUE_ORDER, ordered=True)
                 ax = sns.barplot(data=sub, x='Experiment', y='Mean_TopN', hue='model',
                                  palette=COLOR_PALETTE, hue_order=HUE_ORDER)
-                ax.set_title(f'Comparison of Average {metric} (Top-{args.top_n}) Across Experiments', fontsize=18, weight='bold')
-                ax.set_xlabel('Experiment', fontsize=14)
-                ax.set_ylabel(f'Average Score (Mean {metric}, Top-{args.top_n})', fontsize=14)
-                plt.xticks(rotation=45, ha='right', fontsize=12)
-                plt.yticks(fontsize=12)
+                ax.set_title(f'Comparison of Average {metric} (Top-{args.top_n}) Across Experiments', fontsize=22, weight='bold')
+                ax.set_xlabel('Experiment', fontsize=16)
+                ax.set_ylabel(f'Average Score (Mean {metric}, Top-{args.top_n})', fontsize=16)
+                plt.xticks(rotation=45, ha='right', fontsize=14)
+                plt.yticks(fontsize=14)
                 # Annotate values on bars
                 for p in ax.patches:
                     height = p.get_height()
@@ -270,7 +270,7 @@ def main():
                                         ha='center', va='top',
                                         xytext=(0, -9), textcoords='offset points',
                                         fontsize=9, color='black')
-                ax.legend(title='Model', fontsize=11)
+                ax.legend(title='Model', fontsize=13)
                 plt.grid(axis='y', linestyle='--', alpha=0.7)
                 plt.tight_layout()
                 out = BASE_PATH / f"trend_top{args.top_n}_avg_{metric}.png"
@@ -326,14 +326,14 @@ def main():
                 sub['model'] = pd.Categorical(sub['model'], categories=HUE_ORDER, ordered=True)
                 ax = sns.barplot(data=sub, x='Experiment', y='Mean_TopPos', hue='model',
                                  palette=COLOR_PALETTE, hue_order=HUE_ORDER)
-                ax.set_title(f'Comparison of Average {metric} (Top-{args.top_by_positives} by positives) Across Experiments', fontsize=18, weight='bold')
-                ax.set_xlabel('Experiment', fontsize=14)
-                ax.set_ylabel(f'Average Score (Mean {metric}, Top-{args.top_by_positives})', fontsize=14)
+                ax.set_title(f'Comparison of Average {metric} (Top-{args.top_by_positives} by positives) Across Experiments', fontsize=22, weight='bold')
+                ax.set_xlabel('Experiment', fontsize=16)
+                ax.set_ylabel(f'Average Score (Mean {metric}, Top-{args.top_by_positives})', fontsize=16)
                 # 固定の縦軸（メトリクスに応じた既定範囲）で表示し、恣意的な自動調整を避ける
                 ymin, ymax = _fixed_ylim_for_metric(metric)
                 ax.set_ylim(ymin, ymax)
-                plt.xticks(rotation=45, ha='right', fontsize=12)
-                plt.yticks(fontsize=12)
+                plt.xticks(rotation=45, ha='right', fontsize=14)
+                plt.yticks(fontsize=14)
                 for p in ax.patches:
                     height = p.get_height()
                     if pd.notna(height):
@@ -350,7 +350,7 @@ def main():
                                         ha='center', va='top',
                                         xytext=(0, -9), textcoords='offset points',
                                         fontsize=9, color='black')
-                ax.legend(title='Model', fontsize=11)
+                ax.legend(title='Model', fontsize=13)
                 plt.grid(axis='y', linestyle='--', alpha=0.7)
                 plt.tight_layout()
                 out = BASE_PATH / f"trend_top{args.top_by_positives}_bypositives_avg_{metric}.png"

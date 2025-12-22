@@ -21,11 +21,11 @@ COLOR_PALETTE = {
     "Random": "#2ca02c"         # 緑 (追加)
 }
 
-TITLE_FONT_SIZE = 24
-AXIS_LABEL_FONT_SIZE = 20
-TICK_FONT_SIZE = 18
-SMALL_TICK_FONT_SIZE = 18
-LEGEND_FONT_SIZE = 18
+TITLE_FONT_SIZE = 28
+AXIS_LABEL_FONT_SIZE = 24
+TICK_FONT_SIZE = 20
+SMALL_TICK_FONT_SIZE = 20
+LEGEND_FONT_SIZE = 20
 
 plt.rcParams.update({
     "axes.titlesize": TITLE_FONT_SIZE,
@@ -204,10 +204,10 @@ def visualize_per_model_importance(
             fontsize=TITLE_FONT_SIZE,
             weight='bold',
         )
-        plt.xlabel('Feature', fontsize=AXIS_LABEL_FONT_SIZE)
-        plt.ylabel('Importance', fontsize=AXIS_LABEL_FONT_SIZE)
-        plt.xticks(rotation=45, ha='right', fontsize=SMALL_TICK_FONT_SIZE)
-        plt.yticks(fontsize=TICK_FONT_SIZE)
+        plt.xlabel('Feature', fontsize=AXIS_LABEL_FONT_SIZE + 2)
+        plt.ylabel('Importance', fontsize=AXIS_LABEL_FONT_SIZE + 2)
+        plt.xticks(rotation=45, ha='right', fontsize=SMALL_TICK_FONT_SIZE + 2)
+        plt.yticks(fontsize=TICK_FONT_SIZE + 2)
         plt.ylim(bottom=0)
         plt.grid(axis='y', linestyle='--', alpha=0.7)
         plt.tight_layout()

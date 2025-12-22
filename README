@@ -2,8 +2,9 @@
 
 This repository provides the replication package for our research paper. It contains the datasets, scripts, and instructions necessary to reproduce the experimental results reported in the paper.
 
-> **Paper**: *[Paper Title]* (to appear / published at [Venue, Year])  
-> **Authors**: [Author Names]  
+> **Paper**: *[Raise or Check? Predicting the Necessity of
+Additional Fuzzing for Continuous Fuzzing]*  
+> **Authors**: [Riku Kato, Tatsuya Shirai, Olivier Nourry, Yutaro Kashiwa, Kenji Fujiwara, Yasutaka Kamei, and Hajimu Iida]  
 > **DOI / Preprint**: [Link]
 
 ---
@@ -138,8 +139,7 @@ bash RQ1_2.sh
 bash RQ3.sh
 ```
 
-> **Note**: Some scripts require substantial time and resources. We strongly recommend running them on a SLURM-managed cluster.
-
+> **Note**: Some scripts require substantial time and resources. We strongly recommend running them on a SLURM-managed cluster. Due to the large data volume, we provide the aggregated dataset (After Step4) instead of the raw data.
 ---
 
 ## Expected Results
