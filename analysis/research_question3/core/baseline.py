@@ -37,16 +37,35 @@ def baseline_detection_metrics(
 ) -> pd.DataFrame:
     """Compute per-project baseline detection metrics fused with build cadence."""
 
-    baseline_days = (
-        detection_df.groupby("project")["detection_time_days"]
-        .median()
-        .rename("baseline_detection_days")
+    build_rate_map = {
+        str(row.get("project", "")).strip(): float(row.get("builds_per_day", float("nan")))
+        for _, row in build_counts_df.iterrows()
+        if str(row.get("project", "")).strip()
+    }
+    frame = detection_df.copy()
+    frame["project"] = frame.get("project", "").astype(str).str.strip()
+    frame["detection_time_days"] = pd.to_numeric(frame.get("detection_time_days"), errors="coerce")
+    frame = frame.dropna(subset=["project", "detection_time_days"])
+    frame["builds_per_day"] = frame["project"].map(build_rate_map).astype(float)
+    frame["detection_time_builds"] = (
+        frame["detection_time_days"] * frame["builds_per_day"]
     )
-    merged = baseline_days.to_frame().reset_index()
+    frame.loc[frame["builds_per_day"] <= 0, "detection_time_builds"] = frame["detection_time_days"]
+
+    baseline_builds = (
+        frame.groupby("project")["detection_time_builds"]
+        .median()
+        .rename("baseline_detection_builds")
+    )
+    merged = baseline_builds.to_frame().reset_index()
     merged = merged.merge(build_counts_df, on="project", how="left")
     merged["builds_per_day"] = merged["builds_per_day"].fillna(0.0)
-    merged["baseline_detection_builds"] = (
-        merged["baseline_detection_days"].fillna(0.0) * merged["builds_per_day"]
+    merged["baseline_detection_builds"] = merged["baseline_detection_builds"].fillna(0.0)
+    merged["baseline_detection_days"] = merged.apply(
+        lambda row: row["baseline_detection_builds"] / row["builds_per_day"]
+        if row["builds_per_day"] > 0
+        else row["baseline_detection_builds"],
+        axis=1,
     )
     return merged
 

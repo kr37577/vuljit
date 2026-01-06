@@ -44,11 +44,19 @@ def summarize_schedule(
         else 0.0,
     }
 
-    if "median_detection_days" in df.columns:
+    if "median_detection_builds" in df.columns:
+        summary["median_detection_builds_mean"] = float(
+            df["median_detection_builds"].dropna().mean()
+        )
+    elif "median_detection_days" in df.columns:
         summary["median_detection_days_mean"] = float(
             df["median_detection_days"].dropna().mean()
         )
-    if "sampled_offset_days" in df.columns:
+    if "sampled_offset_builds" in df.columns:
+        summary["sampled_offset_builds_mean"] = float(
+            df["sampled_offset_builds"].dropna().mean()
+        )
+    elif "sampled_offset_days" in df.columns:
         summary["sampled_offset_mean"] = float(
             df["sampled_offset_days"].dropna().mean()
         )
@@ -98,9 +106,13 @@ def summarize_schedule_by_project(
     else:
         result[value_column] = 0.0
 
-    if "median_detection_days" in df.columns:
+    if "median_detection_builds" in df.columns:
+        result["median_detection_builds_mean"] = grouped["median_detection_builds"].mean()
+    elif "median_detection_days" in df.columns:
         result["median_detection_days_mean"] = grouped["median_detection_days"].mean()
-    if "sampled_offset_days" in df.columns:
+    if "sampled_offset_builds" in df.columns:
+        result["sampled_offset_builds_mean"] = grouped["sampled_offset_builds"].mean()
+    elif "sampled_offset_days" in df.columns:
         result["sampled_offset_mean"] = grouped["sampled_offset_days"].mean()
     if "normalized_line_change" in df.columns:
         result["normalized_line_change_mean"] = grouped["normalized_line_change"].mean()
@@ -115,7 +127,9 @@ def summarize_schedule_by_project(
     result["unique_days"] = result["unique_days"].fillna(0).astype(int)
     result[value_column] = result[value_column].fillna(0).astype(float)
     for col in (
+        "median_detection_builds_mean",
         "median_detection_days_mean",
+        "sampled_offset_builds_mean",
         "sampled_offset_mean",
         "normalized_line_change_mean",
         "predicted_additional_builds_sum",

@@ -220,7 +220,7 @@ def test_strategy3_fold_budget_uses_fold_statistics(monkeypatch: pytest.MonkeyPa
     assert not result.empty
     assert set(result["project"]) == {"alpha"}
     assert set(result["fold_budget_source"]) == {"fold"}
-    assert np.allclose(result["fold_budget"].to_numpy(dtype=float), 12.0)
+    assert np.allclose(result["fold_budget"].to_numpy(dtype=float), 6.0)
     assert np.allclose(result["fold_sample_count"].to_numpy(dtype=float), 4.0)
     assert all(result["fold_positive_days"] == 2)
 
@@ -313,7 +313,7 @@ def test_strategy3_fold_median_fallbacks(monkeypatch: pytest.MonkeyPatch, tmp_pa
         stats=stats_project,
     )
     assert set(result_project["fold_budget_source"]) == {"project"}
-    assert pytest.approx(result_project["fold_budget"].iloc[0]) == 16.0
+    assert pytest.approx(result_project["fold_budget"].iloc[0]) == 8.0
 
     stats_global = {
         "__global__": {"median": 6.0, "count": 30.0},
@@ -331,7 +331,7 @@ def test_strategy3_fold_median_fallbacks(monkeypatch: pytest.MonkeyPatch, tmp_pa
         stats=stats_global,
     )
     assert set(result_global["fold_budget_source"]) == {"global"}
-    assert pytest.approx(result_global["fold_budget"].iloc[0]) == 24.0
+    assert pytest.approx(result_global["fold_budget"].iloc[0]) == 12.0
 
 
 def test_strategy3_expected_builds_and_rounding(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -357,8 +357,8 @@ def test_strategy3_expected_builds_and_rounding(monkeypatch: pytest.MonkeyPatch,
 
     assert len(result) == 2
     expected_map = dict(zip(result["day_index"], result["expected_additional_builds_raw"]))
-    assert pytest.approx(expected_map[1]) == 12.0
-    assert pytest.approx(expected_map[2]) == 4.0
+    assert pytest.approx(expected_map[1]) == 6.0
+    assert pytest.approx(expected_map[2]) == 2.0
     rounded_map = dict(zip(result["day_index"], result["rounded_additional_builds"]))
     scheduled_map = dict(zip(result["day_index"], result["scheduled_additional_builds"]))
     assert rounded_map == scheduled_map
@@ -492,22 +492,32 @@ def test_strategy3_cross_project_uses_global_budget(monkeypatch: pytest.MonkeyPa
 
 def test_compute_project_fold_statistics_handles_fallbacks(monkeypatch: pytest.MonkeyPatch) -> None:
     detection_df = _sample_detection_table()
+    build_counts_df = pd.DataFrame(
+        {
+            "project": ["alpha", "beta"],
+            "builds_per_day": [2.0, 2.0],
+        }
+    )
 
-    stats = strategies._compute_project_fold_statistics(detection_df, _fold_metadata())
+    stats = strategies._compute_project_fold_statistics(
+        detection_df,
+        _fold_metadata(),
+        build_counts_df=build_counts_df,
+    )
 
     assert "__global__" in stats
-    assert stats["__global__"]["median"] == pytest.approx(6.0)
-    assert stats["__global__"]["q1"] == pytest.approx(3.0)
-    assert stats["__global__"]["q3"] == pytest.approx(9.0)
+    assert stats["__global__"]["median"] == pytest.approx(12.0)
+    assert stats["__global__"]["q1"] == pytest.approx(6.0)
+    assert stats["__global__"]["q3"] == pytest.approx(18.0)
 
     alpha_fold1 = stats["alpha"]["fold-1"]
-    assert alpha_fold1["median"] == pytest.approx(4.0)
+    assert alpha_fold1["median"] == pytest.approx(8.0)
     assert alpha_fold1["q1"] <= alpha_fold1["median"] <= alpha_fold1["q3"]
 
     alpha_fold2 = stats["alpha"]["fold-2"]
-    assert alpha_fold2["median"] == pytest.approx(14.0)
-    assert alpha_fold2["q1"] == pytest.approx(14.0)
-    assert alpha_fold2["q3"] == pytest.approx(14.0)
+    assert alpha_fold2["median"] == pytest.approx(28.0)
+    assert alpha_fold2["q1"] == pytest.approx(28.0)
+    assert alpha_fold2["q3"] == pytest.approx(28.0)
 
     beta_fold1 = stats["beta"]["fold-1"]
     assert math.isnan(beta_fold1["median"])
@@ -515,11 +525,11 @@ def test_compute_project_fold_statistics_handles_fallbacks(monkeypatch: pytest.M
     assert math.isnan(beta_fold1["q3"])
 
     beta_fold2 = stats["beta"]["fold-2"]
-    assert beta_fold2["median"] == pytest.approx(6.0)
+    assert beta_fold2["median"] == pytest.approx(12.0)
     assert beta_fold2["q1"] <= beta_fold2["median"] <= beta_fold2["q3"]
 
-    assert stats["alpha"]["__overall__"]["median"] == pytest.approx(6.0)
-    assert stats["beta"]["__overall__"]["median"] == pytest.approx(6.0)
+    assert stats["alpha"]["__overall__"]["median"] == pytest.approx(12.0)
+    assert stats["beta"]["__overall__"]["median"] == pytest.approx(12.0)
 
 
 def test_compute_project_fold_statistics_produces_lopo_stats() -> None:
@@ -536,12 +546,22 @@ def test_compute_project_fold_statistics_produces_lopo_stats() -> None:
         }
     )
 
-    stats = strategies._compute_project_fold_statistics(detection_df, compute_lopo=True)
+    build_counts_df = pd.DataFrame(
+        {
+            "project": ["alpha", "beta"],
+            "builds_per_day": [2.0, 2.0],
+        }
+    )
+    stats = strategies._compute_project_fold_statistics(
+        detection_df,
+        compute_lopo=True,
+        build_counts_df=build_counts_df,
+    )
 
     assert "__global_exclusive__" in stats
     lopo = stats["__global_exclusive__"]
-    assert pytest.approx(lopo["alpha"]["median"]) == 7.0  # median of beta-only values
-    assert pytest.approx(lopo["beta"]["median"]) == 3.0  # median of alpha-only values
+    assert pytest.approx(lopo["alpha"]["median"]) == 14.0  # median of beta-only values
+    assert pytest.approx(lopo["beta"]["median"]) == 6.0  # median of alpha-only values
     assert lopo["alpha"]["count"] == 2.0
     assert lopo["beta"]["count"] == 2.0
 
@@ -587,13 +607,13 @@ def test_strategy1_uses_peer_project_median(monkeypatch: pytest.MonkeyPatch) -> 
     assert set(schedule["walkforward_fold"]) == {"fold-1", "fold-2"}
 
     fold1_row = schedule.set_index("walkforward_fold").loc["fold-1"]
-    assert fold1_row["median_detection_days"] == pytest.approx(3.0)
-    assert fold1_row["scheduled_additional_builds"] == 6
+    assert fold1_row["median_detection_builds"] == pytest.approx(3.0)
+    assert fold1_row["scheduled_additional_builds"] == 3
     assert fold1_row["train_window_end"] == pd.Timestamp("2024-01-31", tz="UTC")
 
     fold2_row = schedule.set_index("walkforward_fold").loc["fold-2"]
-    assert fold2_row["median_detection_days"] == pytest.approx(5.0)
-    assert fold2_row["scheduled_additional_builds"] == 10
+    assert fold2_row["median_detection_builds"] == pytest.approx(5.0)
+    assert fold2_row["scheduled_additional_builds"] == 5
     assert fold2_row["train_window_end"] == pd.Timestamp("2024-02-28", tz="UTC")
 
 
@@ -679,16 +699,16 @@ def test_strategy2_random_range_uses_peer_medians(monkeypatch: pytest.MonkeyPatc
 
     fold1_expected_offset = _expected_uniform("alpha", "fold-1", 123, 1.0, 4.0)
     fold1_row = schedule.set_index("walkforward_fold").loc["fold-1"]
-    assert fold1_row["offset_days_q1"] == pytest.approx(1.0)
-    assert fold1_row["offset_days_q3"] == pytest.approx(4.0)
-    assert fold1_row["sampled_offset_days"] == pytest.approx(fold1_expected_offset)
-    assert fold1_row["scheduled_additional_builds"] == math.ceil(fold1_expected_offset * 2.0)
+    assert fold1_row["offset_builds_q1"] == pytest.approx(1.0)
+    assert fold1_row["offset_builds_q3"] == pytest.approx(4.0)
+    assert fold1_row["sampled_offset_builds"] == pytest.approx(fold1_expected_offset)
+    assert fold1_row["scheduled_additional_builds"] == math.ceil(fold1_expected_offset)
 
     fold2_row = schedule.set_index("walkforward_fold").loc["fold-2"]
-    assert fold2_row["offset_days_q1"] == pytest.approx(2.0)
-    assert fold2_row["offset_days_q3"] == pytest.approx(8.0)
-    assert fold2_row["sampled_offset_days"] == pytest.approx(_expected_uniform("alpha", "fold-2", 123, 2.0, 8.0))
-    assert fold2_row["scheduled_additional_builds"] == math.ceil(fold2_row["sampled_offset_days"] * 2.0)
+    assert fold2_row["offset_builds_q1"] == pytest.approx(2.0)
+    assert fold2_row["offset_builds_q3"] == pytest.approx(8.0)
+    assert fold2_row["sampled_offset_builds"] == pytest.approx(_expected_uniform("alpha", "fold-2", 123, 2.0, 8.0))
+    assert fold2_row["scheduled_additional_builds"] == math.ceil(fold2_row["sampled_offset_builds"])
 
 
 def test_strategy2_cross_project_uses_global_quartiles(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -813,12 +833,12 @@ def test_strategies_emit_fold_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     assert set(schedule1["walkforward_fold"]) == {"fold-1", "fold-2"}
 
     fold1_row = schedule1.set_index("walkforward_fold").loc["fold-1"]
-    assert fold1_row["median_detection_days"] == pytest.approx(3.0)
+    assert fold1_row["median_detection_builds"] == pytest.approx(3.0)
     assert fold1_row["train_window_start"] == assignments.loc[0, "train_window_start"]
     assert fold1_row["train_window_end"] == assignments.loc[0, "train_window_end"]
 
     fold2_row = schedule1.set_index("walkforward_fold").loc["fold-2"]
-    assert fold2_row["median_detection_days"] == pytest.approx(7.0)
+    assert fold2_row["median_detection_builds"] == pytest.approx(7.0)
     assert fold2_row["train_window_start"] == assignments.loc[1, "train_window_start"]
     assert fold2_row["train_window_end"] == assignments.loc[1, "train_window_end"]
 
@@ -836,20 +856,20 @@ def test_strategies_emit_fold_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     fold1_q1 = 2.5
     fold1_q3 = 3.5
     fold1_result = schedule2.set_index("walkforward_fold").loc["fold-1"]
-    assert fold1_result["offset_days_q1"] == pytest.approx(fold1_q1)
-    assert fold1_result["offset_days_q3"] == pytest.approx(fold1_q3)
+    assert fold1_result["offset_builds_q1"] == pytest.approx(fold1_q1)
+    assert fold1_result["offset_builds_q3"] == pytest.approx(fold1_q3)
     assert fold1_result["train_window_end"] == assignments.loc[0, "train_window_end"]
     expected_sample_fold1 = _expected_uniform("alpha", "fold-1", 7, fold1_q1, fold1_q3)
-    assert fold1_result["sampled_offset_days"] == pytest.approx(expected_sample_fold1)
+    assert fold1_result["sampled_offset_builds"] == pytest.approx(expected_sample_fold1)
 
     fold2_q1 = 6.5
     fold2_q3 = 7.5
     fold2_result = schedule2.set_index("walkforward_fold").loc["fold-2"]
-    assert fold2_result["offset_days_q1"] == pytest.approx(fold2_q1)
-    assert fold2_result["offset_days_q3"] == pytest.approx(fold2_q3)
+    assert fold2_result["offset_builds_q1"] == pytest.approx(fold2_q1)
+    assert fold2_result["offset_builds_q3"] == pytest.approx(fold2_q3)
     assert fold2_result["train_window_start"] == assignments.loc[1, "train_window_start"]
     expected_sample_fold2 = _expected_uniform("alpha", "fold-2", 7, fold2_q1, fold2_q3)
-    assert fold2_result["sampled_offset_days"] == pytest.approx(expected_sample_fold2)
+    assert fold2_result["sampled_offset_builds"] == pytest.approx(expected_sample_fold2)
 
 
 def test_strategy4_default_features_follow_prediction_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

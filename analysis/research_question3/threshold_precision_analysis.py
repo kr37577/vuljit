@@ -129,9 +129,13 @@ def _summarize_strategy_frame(df: pd.DataFrame, value_column: str = "scheduled_a
         "unique_days": float(df["merge_date"].nunique() if "merge_date" in df.columns else df["merge_date_ts"].nunique()),
         value_column: float(df[value_column].fillna(0).sum()),
     }
-    if "median_detection_days" in df.columns:
+    if "median_detection_builds" in df.columns:
+        metrics["median_detection_builds_mean"] = float(df["median_detection_builds"].dropna().mean())
+    elif "median_detection_days" in df.columns:
         metrics["median_detection_days_mean"] = float(df["median_detection_days"].dropna().mean())
-    if "sampled_offset_days" in df.columns:
+    if "sampled_offset_builds" in df.columns:
+        metrics["sampled_offset_builds_mean"] = float(df["sampled_offset_builds"].dropna().mean())
+    elif "sampled_offset_days" in df.columns:
         metrics["sampled_offset_mean"] = float(df["sampled_offset_days"].dropna().mean())
     if "normalized_line_change" in df.columns:
         metrics["normalized_line_change_mean"] = float(df["normalized_line_change"].dropna().mean())

@@ -530,7 +530,7 @@ def _coerce_utc_timestamp(value: Any) -> Optional[pd.Timestamp]:
 
 
 def _summarise_duration_series(values: pd.Series) -> Dict[str, float]:
-    """Return median and interquartile statistics for a duration series."""
+    """Return median and interquartile statistics for a numeric series."""
 
     cleaned = pd.to_numeric(values, errors="coerce").astype(float)
     cleaned = cleaned[np.isfinite(cleaned)]
@@ -561,7 +561,7 @@ def _resolve_median_with_fallback(
     project_key: Optional[str] = None,
     prefer_lopo_only: bool = False,
 ) -> Tuple[Optional[float], Optional[float], Optional[str]]:
-    """Resolve median detection days with optional preference for LOPO statistics."""
+    """Resolve median detection builds with optional preference for LOPO statistics."""
 
     def _extract(stats_dict: Optional[Dict[str, float]]) -> Tuple[Optional[float], Optional[float]]:
         if not isinstance(stats_dict, dict):
@@ -694,6 +694,7 @@ def _compute_project_fold_statistics(
     walkforward_splits: Optional[int] = None,
     use_recent_training: Optional[bool] = None,
     compute_lopo: bool = True,
+    build_counts_df: Optional[pd.DataFrame] = None,
 ) -> Dict[str, Dict[str, Dict[str, float]]]:
     """Compute per-project statistics for each walkforward fold."""
 
@@ -712,6 +713,28 @@ def _compute_project_fold_statistics(
     frame = frame.dropna(subset=["detection_time_days"])
     frame = frame[frame["detection_time_days"] >= 0]
 
+    if build_counts_df is None:
+        try:
+            build_counts_df = _load_build_counts()
+        except Exception:  # pragma: no cover - fallback for missing defaults
+            build_counts_df = pd.DataFrame(columns=["project", "builds_per_day"])
+
+    build_counts_map = {}
+    if build_counts_df is not None and not build_counts_df.empty:
+        build_counts_map = {
+            str(row.get("project", "")).strip(): float(row.get("builds_per_day", float("nan")))
+            for _, row in build_counts_df.iterrows()
+            if str(row.get("project", "")).strip()
+        }
+
+    frame["builds_per_day"] = frame["project"].map(build_counts_map).astype(float)
+    builds_per_day = pd.to_numeric(frame["builds_per_day"], errors="coerce")
+    detection_days = frame["detection_time_days"].astype(float)
+    scaled_builds = detection_days * builds_per_day
+    frame["detection_time_builds"] = scaled_builds.where(builds_per_day > 0, detection_days)
+    frame = frame.dropna(subset=["detection_time_builds"])
+    frame = frame[frame["detection_time_builds"] >= 0]
+
     if frame.empty:
         return {"__global__": {"median": float("nan"), "q1": float("nan"), "q3": float("nan")}}
 
@@ -728,7 +751,7 @@ def _compute_project_fold_statistics(
 
     selected_projects = sorted(selected_projects)
 
-    global_stats = _summarise_duration_series(frame["detection_time_days"])
+    global_stats = _summarise_duration_series(frame["detection_time_builds"])
     global_stats["count"] = float(len(frame))
 
     dated = frame.copy()
@@ -745,7 +768,7 @@ def _compute_project_fold_statistics(
             if project in lopo_stats:
                 continue
             mask = project_column != project
-            others = frame.loc[mask, "detection_time_days"]
+            others = frame.loc[mask, "detection_time_builds"]
             stats = _summarise_duration_series(others)
             stats["count"] = float(len(others))
             lopo_stats[project] = stats
@@ -758,7 +781,7 @@ def _compute_project_fold_statistics(
 
     for project in selected_projects:
         project_rows = frame.loc[frame["project"] == project, :]
-        project_stats: Dict[str, Dict[str, float]] = {"__overall__": _summarise_duration_series(project_rows["detection_time_days"])}
+        project_stats: Dict[str, Dict[str, float]] = {"__overall__": _summarise_duration_series(project_rows["detection_time_builds"])}
         project_stats["__overall__"]["count"] = float(len(project_rows))
 
         if project not in metadata_cache:
@@ -785,7 +808,7 @@ def _compute_project_fold_statistics(
                     mask = (project_dated["commit_ts"] >= train_start) & (project_dated["commit_ts"] <= train_end)
                 else:
                     mask = project_dated["commit_ts"] <= train_end
-                fold_series = project_dated.loc[mask, "detection_time_days"]
+                fold_series = project_dated.loc[mask, "detection_time_builds"]
             project_stats[fold_id] = _summarise_duration_series(fold_series)
             project_stats[fold_id]["count"] = float(len(fold_series))
 
@@ -928,9 +951,9 @@ def strategy1_median_schedule(
     """Trigger median-sized additional builds using walkforward-aware medians.
 
     When the JIT model marks a day as vulnerable (`predicted_label_*` or risk
-    >= ``threshold``), we allocate `ceil(median_detection_days * builds_per_day)`
-    extra builds. The detection-time median is resolved with the following
-    precedence to remain aligned with walkforward training windows:
+    >= ``threshold``), we allocate `ceil(median_detection_builds)` extra builds.
+    The detection-build median is resolved with the following precedence to
+    remain aligned with walkforward training windows:
 
     1. Median for the walkforward fold that contains the labelled day.
     2. Project-wide median across all detection samples.
@@ -1059,20 +1082,20 @@ def strategy1_median_schedule(
                 fold_id = None
             fold_identifier = None if fold_id is None else str(fold_id)
 
-            resolved_median_days, median_source = _resolve_median(
+            resolved_median_builds, median_source = _resolve_median(
                 project_stats,
                 fold_identifier,
                 project,
                 allow_project_fallback=allow_project_fallback,
                 allow_global_fallback=allow_global_fallback,
             )
-            if resolved_median_days is None:
+            if resolved_median_builds is None:
                 continue
 
             builds_per_day = float(row.get("builds_per_day", 0.0))
             if not math.isfinite(builds_per_day) or builds_per_day <= 0:
                 continue
-            scheduled = int(math.ceil(resolved_median_days * builds_per_day))
+            scheduled = int(math.ceil(resolved_median_builds))
             if scheduled <= 0:
                 continue
 
@@ -1089,7 +1112,7 @@ def strategy1_median_schedule(
                 "merge_date": row.get("merge_date_ts"),
                 "day_index": int(row.get("day_index", 0)) if not pd.isna(row.get("day_index")) else None,
                 "builds_per_day": builds_per_day,
-                "median_detection_days": resolved_median_days,
+                "median_detection_builds": resolved_median_builds,
                 "scheduled_additional_builds": scheduled,
                 "label_source": label_name,
                 "walkforward_fold": fold_identifier if use_fold else None,
@@ -1119,7 +1142,7 @@ def strategy2_random_within_median_range(
     use_recent_training: Optional[bool] = None,
     mode: str = "per_project",
 ) -> pd.DataFrame:
-    """Schedule additional builds using fold-aware interquartile sampling."""
+    """Schedule additional builds using fold-aware interquartile sampling of build counts."""
 
     detection_df = detection_df if detection_df is not None else _load_detection_table()
     timelines = timelines if timelines is not None else _load_build_timelines()
@@ -1253,21 +1276,21 @@ def strategy2_random_within_median_range(
                 fold_id = None
             fold_identifier: Optional[str] = None if fold_id is None else str(fold_id)
 
-            q1_days, q3_days, quartile_source = _resolve_quartiles(
+            q1_builds, q3_builds, quartile_source = _resolve_quartiles(
                 project_stats,
                 fold_identifier,
                 project,
                 allow_project_fallback=allow_project_fallback,
                 allow_global_fallback=allow_global_fallback,
             )
-            if q1_days is None or q3_days is None:
+            if q1_builds is None or q3_builds is None:
                 continue
 
             rng = _next_rng(project, fold_identifier)
-            sampled_offset = float(q1_days) if q3_days == q1_days else float(rng.uniform(q1_days, q3_days))
+            sampled_offset = float(q1_builds) if q3_builds == q1_builds else float(rng.uniform(q1_builds, q3_builds))
 
             builds_per_day = float(row.get("builds_per_day", 0.0))
-            scheduled_builds = int(math.ceil(sampled_offset * builds_per_day)) if builds_per_day > 0 else int(math.ceil(sampled_offset))
+            scheduled_builds = int(math.ceil(sampled_offset))
             if scheduled_builds <= 0:
                 continue
 
@@ -1284,9 +1307,9 @@ def strategy2_random_within_median_range(
                 "merge_date": row.get("merge_date_ts"),
                 "day_index": int(row.get("day_index", 0)) if not pd.isna(row.get("day_index")) else None,
                 "builds_per_day": builds_per_day,
-                "offset_days_q1": q1_days,
-                "offset_days_q3": q3_days,
-                "sampled_offset_days": sampled_offset,
+                "offset_builds_q1": q1_builds,
+                "offset_builds_q3": q3_builds,
+                "sampled_offset_builds": sampled_offset,
                 "scheduled_additional_builds": scheduled_builds,
                 "label_source": label_name,
                 "walkforward_fold": fold_identifier if use_fold else None,
@@ -1417,7 +1440,7 @@ def strategy3_line_change_proportional(
             allow_global_fallback = True
             for fold_value, fold_rows in fold_grouped:
                 fold_identifier = None if (pd.isna(fold_value)) else str(fold_value)
-                median_days, sample_count, source = _resolve_median_with_fallback(
+                median_builds, sample_count, source = _resolve_median_with_fallback(
                     project_stats,
                     global_stats,
                     fold_identifier,
@@ -1427,7 +1450,7 @@ def strategy3_line_change_proportional(
                     project_key=project,
                     prefer_lopo_only=prefer_lopo_only,
                 )
-                if median_days is None:
+                if median_builds is None:
                     continue
                 builds_series = pd.to_numeric(fold_rows.get("builds_per_day"), errors="coerce").astype(float)
                 builds_series = builds_series.replace([np.inf, -np.inf], np.nan).fillna(0.0)
@@ -1439,7 +1462,7 @@ def strategy3_line_change_proportional(
                 if not math.isfinite(fold_build_rate) or fold_build_rate <= 0:
                     continue
                 positive_count = int(len(fold_rows))
-                base_fold_budget = float(median_days * positive_count * fold_build_rate)
+                base_fold_budget = float(median_builds * positive_count)
                 scaled_continuous = max(scaling_factor, 0.0) * base_fold_budget
                 fold_budget_continuous = float(scaled_continuous)
                 sample_count_val = float(sample_count) if sample_count is not None and math.isfinite(sample_count) else float("nan")
@@ -1483,7 +1506,7 @@ def strategy3_line_change_proportional(
                 fold_contexts.append(
                     {
                         "fold_identifier": fold_identifier,
-                        "median_days": median_days,
+                        "median_builds": median_builds,
                         "sample_count": sample_count_val,
                         "source": source,
                         "fold_budget_continuous": fold_budget_continuous,
@@ -1594,7 +1617,7 @@ def strategy3_line_change_proportional(
                     "fold_positive_days": ctx["positive_count"],
                     "fold_sample_count": ctx["sample_count"],
                     "fold_identifier": ctx["fold_identifier"],
-                    "fold_median_detection_days": ctx["median_days"],
+                    "fold_median_detection_builds": ctx["median_builds"],
                     "line_churn_baseline": ctx["baseline"],
                     "baseline_zero_fallback": ctx["baseline_zero"],
                     "line_weight_raw": ctx["raw_weights"].get(idx, 0.0),
@@ -1652,7 +1675,7 @@ def strategy3_line_change_proportional(
                 "fold_budget_source": allocation.get("fold_budget_source"),
                 "fold_positive_days": int(allocation.get("fold_positive_days", 0)),
                 "fold_sample_count": float(allocation.get("fold_sample_count", float("nan"))),
-                "fold_median_detection_days": float(allocation.get("fold_median_detection_days", float("nan"))),
+                "fold_median_detection_builds": float(allocation.get("fold_median_detection_builds", float("nan"))),
                 "scheduled_additional_builds": scheduled,
                 "daily_commit_count": commit_value if not pd.isna(commit_value) else np.nan,
                 "strategy_mode": mode_normalized,

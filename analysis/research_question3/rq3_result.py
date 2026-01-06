@@ -5,7 +5,7 @@ Reads ``strategy_wasted_builds.csv`` and emits ``rq3_result.csv`` with columns:
 - Strategy (labelled S1–S5)
 - Total Cost (Builds) -> additional_builds_total
 - Found vulnerabilities -> vulnerabilities_detected_additional
-- Effective Trigger Rate (%) -> detection_vulnerability_trigger
+- Effective Trigger Rate (%) -> detection_vulnerability_rate (as percent)
 - Cost per vulnerability -> Total Cost / Found vulnerabilities
 """
 
@@ -50,7 +50,10 @@ def main() -> None:
 
             total_cost = float(row["additional_builds_total"])
             found_vulns = int(float(row["vulnerabilities_detected_additional"]))
-            trigger_rate = float(row["detection_vulnerability_trigger"])
+            raw_rate = float(
+                row.get("detection_vulnerability_rate", row.get("success_ratio", 0.0))
+            )
+            trigger_rate = raw_rate * 100.0 if raw_rate <= 1.0 else raw_rate
             cost_per_vuln = total_cost / found_vulns if found_vulns else 0.0
 
             rows.append(
