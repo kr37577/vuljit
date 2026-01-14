@@ -92,14 +92,31 @@ def _scan_coverage(
                 continue
             if not eight_digits.match(entry.name):
                 continue
-            linux_dir = Path(entry.path) / "linux"
-            if not linux_dir.is_dir():
-                continue
             has_report = False
-            summary = linux_dir / "summary.json"
-            summary_gz = linux_dir / "summary.json.gz"
-            if summary.is_file() or summary_gz.is_file():
-                has_report = True
+            linux_dir = Path(entry.path) / "linux"
+            if linux_dir.is_dir():
+                summary = linux_dir / "summary.json"
+                summary_gz = linux_dir / "summary.json.gz"
+                has_report = summary.is_file() or summary_gz.is_file()
+
+            # Support target subdirectories:
+            # <project>/<YYYYMMDD>/<target>/linux/summary.json(.gz)
+            if not has_report:
+                try:
+                    for candidate in os.scandir(entry.path):
+                        if not candidate.is_dir():
+                            continue
+                        candidate_linux = Path(candidate.path) / "linux"
+                        if not candidate_linux.is_dir():
+                            continue
+                        summary = candidate_linux / "summary.json"
+                        summary_gz = candidate_linux / "summary.json.gz"
+                        if summary.is_file() or summary_gz.is_file():
+                            has_report = True
+                            break
+                except FileNotFoundError:
+                    has_report = False
+
             if not has_report:
                 continue
 
@@ -267,8 +284,12 @@ def _pick_column(fieldnames: Sequence[str], candidates: Sequence[str]) -> Option
     return None
 
 
-def _parse_prediction_csv(csv_path: Path) -> Optional[Tuple[int, int]]:
-    """Return (total_days, days_with_vcc) for a prediction CSV."""
+def _parse_prediction_csv(csv_path: Path) -> Optional[Dict[date, int]]:
+    """Return mapping from date to VCC label for a prediction CSV.
+
+    If multiple rows share the same date, treat the day as a VCC day if any row
+    marks it as such.
+    """
     with csv_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         fieldnames = reader.fieldnames or []
@@ -282,12 +303,10 @@ def _parse_prediction_csv(csv_path: Path) -> Optional[Tuple[int, int]]:
             if merge_date is None:
                 continue
             is_vcc = _parse_is_vcc_flag(row.get(vcc_col))
-            day_map[merge_date] = is_vcc
+            day_map[merge_date] = max(day_map.get(merge_date, 0), is_vcc)
     if not day_map:
         return None
-    total_days = len(day_map)
-    days_with_vcc = sum(day_map.values())
-    return total_days, days_with_vcc
+    return day_map
 
 
 def _collect_prediction_day_stats(
@@ -303,19 +322,19 @@ def _collect_prediction_day_stats(
     days_with_vcc = 0
 
     for project_dir in sorted(p for p in prediction_root.iterdir() if p.is_dir()):
-        project_total = 0
-        project_with_vcc = 0
+        project_day_map: Dict[date, int] = {}
         for csv_file in sorted(project_dir.rglob(pattern)):
-            parsed = _parse_prediction_csv(csv_file)
-            if not parsed:
+            day_map = _parse_prediction_csv(csv_file)
+            if not day_map:
                 continue
-            days, with_vcc = parsed
-            project_total += days
-            project_with_vcc += with_vcc
+            for day, label in day_map.items():
+                project_day_map[day] = max(project_day_map.get(day, 0), label)
 
-        if project_total == 0:
+        if not project_day_map:
             continue
 
+        project_total = len(project_day_map)
+        project_with_vcc = sum(project_day_map.values())
         project_without = project_total - project_with_vcc
         per_project.append(
             {
@@ -678,13 +697,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument(
         "--coverage-start-date",
         type=_cli_date,
-        default="2018-08-22",
+        default=_cli_date("2018-08-22"),
         help="Ignore coverage reports earlier than this date (YYYY-MM-DD).",
     )
     parser.add_argument(
         "--coverage-end-date",
         type=_cli_date,
-        default="2025-06-01",
+        default=_cli_date("2025-06-01"),
         help="Ignore coverage reports later than this date (YYYY-MM-DD).",
     )
     parser.add_argument(
