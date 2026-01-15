@@ -1412,6 +1412,10 @@ def strategy3_line_change_proportional(
         ).reset_index(drop=True)
         if not use_fold and "walkforward_fold" not in merged.columns:
             merged["walkforward_fold"] = None
+        sort_cols = ["merge_date_ts"]
+        if "day_index" in merged.columns:
+            sort_cols.append("day_index")
+        merged = merged.sort_values(sort_cols).reset_index(drop=True)
         positive_mask = merged["_strategy_label"].fillna(False)
         if not positive_mask.any():
             continue
@@ -1419,6 +1423,8 @@ def strategy3_line_change_proportional(
         project_stats = stats.get(project, {}) if isinstance(stats.get(project), dict) else {}
 
         line_change_series = merged["line_change_total"].fillna(0).astype(float)
+        positive_line_series = line_change_series.where(positive_mask, np.nan)
+        d_median_past_series = positive_line_series.expanding(min_periods=1).median().shift(1)
 
         commit_count_columns = [col for col in merged.columns if col.startswith("daily_commit_count")]
         if commit_count_columns:
@@ -1427,13 +1433,6 @@ def strategy3_line_change_proportional(
                 commit_count_series = commit_count_series.combine_first(merged[col].astype(float))
         else:
             commit_count_series = pd.Series(np.nan, index=merged.index, dtype=float)
-
-        project_line_values = line_change_series.loc[positive.index].astype(float)
-        positive_line_values = project_line_values[project_line_values > 0]
-        project_baseline = float(np.nanmedian(positive_line_values)) if not positive_line_values.empty else 0.0
-        project_baseline_zero = not (math.isfinite(project_baseline) and project_baseline > 0)
-        if project_baseline_zero:
-            project_baseline = 0.0
 
         allocation_map: Dict[int, Dict[str, object]] = {}
         if not positive.empty:
@@ -1469,13 +1468,16 @@ def strategy3_line_change_proportional(
                 raw_weights: Dict[int, float] = {}
                 for idx in indices:
                     line_value = max(float(line_change_series.loc[idx]), 0.0)
-                    if project_baseline_zero:
+                    baseline_value = float(d_median_past_series.loc[idx]) if idx in d_median_past_series.index else float("nan")
+                    baseline_valid = math.isfinite(baseline_value) and baseline_value > 0
+                    if not baseline_valid:
                         weight = 1.0
+                        baseline_zero_fallback = True
                     else:
-                        weight = math.log1p(line_value) / math.log1p(project_baseline) if project_baseline > 0 else 0.0
-                        # weight = line_value / project_baseline if project_baseline > 0 else 0.0
+                        weight = math.log1p(line_value) / math.log1p(baseline_value)
                         if clip_max is not None and clip_max > 0:
                             weight = min(weight, clip_max)
+                        baseline_zero_fallback = False
                     raw_weights[idx] = max(weight, 0.0)
 
                 rounded_map: Dict[int, int] = {}
@@ -1492,6 +1494,8 @@ def strategy3_line_change_proportional(
                     rounded_map[idx] = max(rounded_val, 0)
 
                 for idx in indices:
+                    baseline_value = float(d_median_past_series.loc[idx]) if idx in d_median_past_series.index else float("nan")
+                    baseline_valid = math.isfinite(baseline_value) and baseline_value > 0
                     allocation_map[idx] = {
                         "fold_budget": fold_budget_target,
                         "fold_budget_continuous": fold_budget_continuous,
@@ -1500,8 +1504,8 @@ def strategy3_line_change_proportional(
                         "fold_sample_count": sample_count_val,
                         "fold_identifier": fold_identifier,
                         "fold_median_detection_builds": float(median_builds),
-                        "line_churn_baseline": project_baseline,
-                        "baseline_zero_fallback": project_baseline_zero,
+                        "line_churn_baseline": baseline_value if baseline_valid else np.nan,
+                        "baseline_zero_fallback": not baseline_valid,
                         "line_weight_raw": raw_weights.get(idx, 0.0),
                         "line_weight_share": raw_weights.get(idx, 0.0),
                         "expected_raw": expected_map.get(idx, 0.0),
