@@ -1358,7 +1358,6 @@ def strategy3_line_change_proportional(
         raise ValueError(f"Unsupported rounding_mode: {rounding_mode!r}")
 
     project_payloads: Dict[str, Dict[str, Any]] = {}
-    project_totals: Dict[str, float] = {}
     project_timelines = {project: timeline for project, timeline in (timelines or {}).items() if not timeline.empty}
     if not project_timelines:
         return pd.DataFrame()
@@ -1429,8 +1428,14 @@ def strategy3_line_change_proportional(
         else:
             commit_count_series = pd.Series(np.nan, index=merged.index, dtype=float)
 
-        fold_contexts: List[Dict[str, Any]] = []
-        context_order = 0
+        project_line_values = line_change_series.loc[positive.index].astype(float)
+        positive_line_values = project_line_values[project_line_values > 0]
+        project_baseline = float(np.nanmedian(positive_line_values)) if not positive_line_values.empty else 0.0
+        project_baseline_zero = not (math.isfinite(project_baseline) and project_baseline > 0)
+        if project_baseline_zero:
+            project_baseline = 0.0
+
+        allocation_map: Dict[int, Dict[str, object]] = {}
         if not positive.empty:
             if use_fold:
                 fold_grouped = positive.groupby("walkforward_fold", dropna=False)
@@ -1452,196 +1457,90 @@ def strategy3_line_change_proportional(
                 )
                 if median_builds is None:
                     continue
-                builds_series = pd.to_numeric(fold_rows.get("builds_per_day"), errors="coerce").astype(float)
-                builds_series = builds_series.replace([np.inf, -np.inf], np.nan).fillna(0.0)
-                if builds_series.empty:
-                    continue
-                fold_build_rate = float(np.nanmedian(builds_series)) if builds_series.notna().any() else 0.0
-                if not math.isfinite(fold_build_rate) or fold_build_rate <= 0:
-                    fold_build_rate = float(builds_series.max())
-                if not math.isfinite(fold_build_rate) or fold_build_rate <= 0:
+                scaled_median_builds = max(scaling_factor, 0.0) * float(median_builds)
+                if not math.isfinite(scaled_median_builds) or scaled_median_builds <= 0:
                     continue
                 positive_count = int(len(fold_rows))
-                base_fold_budget = float(median_builds * positive_count)
-                scaled_continuous = max(scaling_factor, 0.0) * base_fold_budget
-                fold_budget_continuous = float(scaled_continuous)
                 sample_count_val = float(sample_count) if sample_count is not None and math.isfinite(sample_count) else float("nan")
-                fold_budget_target = max(int(round(fold_budget_continuous)), 0)
-                if fold_budget_target <= 0:
-                    continue
+                fold_budget_continuous = float(scaled_median_builds)
+                fold_budget_target = max(int(round(scaled_median_builds)), 0)
 
                 indices = [int(idx) for idx in fold_rows.index]
-                line_values = line_change_series.loc[fold_rows.index].astype(float)
-                positive_line_values = line_values[line_values > 0]
-                baseline = float(np.nanmedian(positive_line_values)) if not positive_line_values.empty else 0.0
-                baseline_zero = not (math.isfinite(baseline) and baseline > 0)
-                if baseline_zero:
-                    baseline = 0.0
-
                 raw_weights: Dict[int, float] = {}
                 for idx in indices:
-                    line_value = max(float(line_values.loc[idx]), 0.0)
-                    if baseline_zero:
+                    line_value = max(float(line_change_series.loc[idx]), 0.0)
+                    if project_baseline_zero:
                         weight = 1.0
                     else:
-                        weight = line_value / baseline if baseline > 0 else 0.0
+                        weight = math.log1p(line_value) / math.log1p(project_baseline) if project_baseline > 0 else 0.0
+                        # weight = line_value / project_baseline if project_baseline > 0 else 0.0
                         if clip_max is not None and clip_max > 0:
                             weight = min(weight, clip_max)
                     raw_weights[idx] = max(weight, 0.0)
 
-                weight_sum = sum(raw_weights.values())
-                if weight_sum <= 0:
-                    share_default = 1.0 / positive_count if positive_count > 0 else 0.0
-                    share_map = {idx: share_default for idx in raw_weights}
-                else:
-                    share_map = {idx: raw_weights[idx] / weight_sum for idx in raw_weights}
+                rounded_map: Dict[int, int] = {}
+                expected_map: Dict[int, float] = {}
+                for idx in indices:
+                    expected_value = float(scaled_median_builds * raw_weights.get(idx, 0.0))
+                    expected_map[idx] = expected_value
+                    if rounding_mode_normalized == "ceil":
+                        rounded_val = int(math.ceil(expected_value - 1e-9))
+                    elif rounding_mode_normalized == "floor":
+                        rounded_val = int(math.floor(expected_value + 1e-9))
+                    else:  # "round"
+                        rounded_val = int(round(expected_value))
+                    rounded_map[idx] = max(rounded_val, 0)
 
-                share_total = sum(share_map.values())
-                if share_total <= 0:
-                    share_default = 1.0 / positive_count if positive_count > 0 else 0.0
-                    share_map = {idx: share_default for idx in raw_weights}
-                else:
-                    share_map = {idx: share_map[idx] / share_total for idx in share_map}
-
-                fold_contexts.append(
-                    {
-                        "fold_identifier": fold_identifier,
-                        "median_builds": median_builds,
-                        "sample_count": sample_count_val,
-                        "source": source,
+                for idx in indices:
+                    allocation_map[idx] = {
+                        "fold_budget": fold_budget_target,
                         "fold_budget_continuous": fold_budget_continuous,
-                        "requested_budget": fold_budget_target,
-                        "indices": indices,
-                        "share_map": share_map,
-                        "raw_weights": raw_weights,
-                        "baseline": baseline,
-                        "baseline_zero": baseline_zero,
-                        "positive_count": positive_count,
+                        "fold_budget_source": source,
+                        "fold_positive_days": positive_count,
+                        "fold_sample_count": sample_count_val,
+                        "fold_identifier": fold_identifier,
+                        "fold_median_detection_builds": float(median_builds),
+                        "line_churn_baseline": project_baseline,
+                        "baseline_zero_fallback": project_baseline_zero,
+                        "line_weight_raw": raw_weights.get(idx, 0.0),
+                        "line_weight_share": raw_weights.get(idx, 0.0),
+                        "expected_raw": expected_map.get(idx, 0.0),
+                        "rounded_value": rounded_map.get(idx, 0),
+                        "final_scheduled": rounded_map.get(idx, 0),
+                        "rounding_mode_used": rounding_mode_normalized,
+                        "fold_overflow_used": False,
                         "strategy_mode": mode_normalized,
-                        "order": context_order,
+                        "project_budget_requested": float("nan"),
+                        "project_budget_cap": float("nan"),
+                        "project_budget_source": "median_builds",
                     }
-                )
-                context_order += 1
 
-        if not fold_contexts:
+        if not allocation_map:
             continue
 
         project_payloads[project] = {
             "positive_rows": positive,
             "line_change_series": line_change_series,
             "commit_count_series": commit_count_series,
-            "fold_contexts": fold_contexts,
+            "allocation_map": allocation_map,
             "label_name": label_name,
             "threshold_used": threshold_used,
             "derived_from_threshold": derived_from_threshold,
         }
-        project_totals[project] = sum(max(float(ctx.get("fold_budget_continuous", 0.0)), 0.0) for ctx in fold_contexts)
 
     if not project_payloads:
         return pd.DataFrame()
 
-    lopo_caps = _compute_lopo_project_budgets(project_totals) if mode_normalized == "cross_project" else {}
     rows: List[Dict[str, object]] = []
 
     for project, payload in project_payloads.items():
-        fold_contexts = payload["fold_contexts"]
-        if not fold_contexts:
-            continue
-        requested_total = project_totals.get(project, 0.0)
-        if requested_total <= 0:
-            continue
-
-        if mode_normalized == "cross_project":
-            lopo_cap = lopo_caps.get(project, requested_total)
-            resolved_cap = min(requested_total, lopo_cap)
-            if global_budget is not None:
-                resolved_cap = min(resolved_cap, float(global_budget))
-            budget_source = "lopo_average"
-        else:
-            resolved_cap = requested_total
-            budget_source = "project_continuous"
-
-        project_budget_float = max(resolved_cap, 0.0)
-        _allocate_project_budget(fold_contexts, project_budget_float)
-
-        allocation_map: Dict[int, Dict[str, object]] = {}
-        for ctx in fold_contexts:
-            fold_budget_target = int(max(ctx.get("allocated_budget", 0), 0))
-            if fold_budget_target <= 0:
-                continue
-            indices = ctx["indices"]
-            share_map = ctx["share_map"]
-            expected_map = {idx: float(fold_budget_target * share_map.get(idx, 0.0)) for idx in share_map}
-
-            rounded_map: Dict[int, int] = {}
-            for idx, value in expected_map.items():
-                if rounding_mode_normalized == "ceil":
-                    rounded_val = int(math.ceil(value - 1e-9))
-                elif rounding_mode_normalized == "floor":
-                    rounded_val = int(math.floor(value + 1e-9))
-                else:  # "round"
-                    rounded_val = int(round(value))
-                rounded_map[idx] = max(rounded_val, 0)
-
-            final_map = dict(rounded_map)
-            overflow_flag = False
-            if rounding_mode_normalized in {"ceil", "round"}:
-                rounded_total = int(sum(final_map.values()))
-                if rounded_total > fold_budget_target and fold_budget_target >= 0:
-                    overflow_flag = True
-                    excess = rounded_total - fold_budget_target
-                    adjustment_order = sorted(indices, key=lambda idx: (share_map[idx], expected_map[idx], idx))
-                    while excess > 0 and adjustment_order:
-                        progress = False
-                        for idx in adjustment_order:
-                            if excess <= 0:
-                                break
-                            if final_map[idx] <= 0:
-                                continue
-                            final_map[idx] -= 1
-                            excess -= 1
-                            progress = True
-                            if excess <= 0:
-                                break
-                        if not progress:
-                            break
-                    if excess > 0 and adjustment_order:
-                        idx = adjustment_order[0]
-                        final_map[idx] = max(final_map[idx] - excess, 0)
-
-            for idx in indices:
-                allocation_map[idx] = {
-                    "fold_budget": fold_budget_target,
-                    "fold_budget_continuous": ctx["fold_budget_continuous"],
-                    "fold_budget_source": ctx["source"],
-                    "fold_positive_days": ctx["positive_count"],
-                    "fold_sample_count": ctx["sample_count"],
-                    "fold_identifier": ctx["fold_identifier"],
-                    "fold_median_detection_builds": ctx["median_builds"],
-                    "line_churn_baseline": ctx["baseline"],
-                    "baseline_zero_fallback": ctx["baseline_zero"],
-                    "line_weight_raw": ctx["raw_weights"].get(idx, 0.0),
-                    "line_weight_share": share_map.get(idx, 0.0),
-                    "expected_raw": expected_map.get(idx, 0.0),
-                    "rounded_value": rounded_map.get(idx, 0),
-                    "final_scheduled": final_map.get(idx, 0),
-                    "rounding_mode_used": rounding_mode_normalized,
-                    "fold_overflow_used": overflow_flag,
-                    "strategy_mode": ctx["strategy_mode"],
-                    "project_budget_requested": float(requested_total),
-                    "project_budget_cap": float(project_budget_float),
-                    "project_budget_source": budget_source,
-                }
-
-        if not allocation_map:
-            continue
-
         positive_rows = payload["positive_rows"]
         line_change_series = payload["line_change_series"]
         commit_count_series = payload["commit_count_series"]
         label_name = payload["label_name"]
         threshold_used = payload["threshold_used"]
         derived_from_threshold = payload["derived_from_threshold"]
+        allocation_map = payload["allocation_map"]
 
         for idx, row in positive_rows.iterrows():
             idx_int = int(idx)
