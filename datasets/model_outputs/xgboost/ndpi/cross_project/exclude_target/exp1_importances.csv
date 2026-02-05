@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.06777154,ndpi
+directories_changed,0.08135009,ndpi
+entropy,0.05888516,ndpi
+exp,0.07001633,ndpi
+files_changed,0.07457455,ndpi
+is_bug_fix,0.05852967,ndpi
+lines_added,0.06358515,ndpi
+lines_deleted,0.06212425,ndpi
+ndev,0.07920446,ndpi
+nuc,0.06195851,ndpi
+rexp,0.07939435,ndpi
+sexp,0.0693253,ndpi
+subsystems_changed,0.09415346,ndpi
+total_prev_loc,0.079127185,ndpi

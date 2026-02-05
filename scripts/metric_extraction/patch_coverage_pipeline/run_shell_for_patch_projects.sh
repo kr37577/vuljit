@@ -20,10 +20,10 @@ Options:
 Extra arguments after -- are forwarded to SCRIPT after the project name.
 USAGE
 }
+vuljit_dir=""
+DEFAULT_INPUT_DIR="${vuljit_dir}/datasets/derived_artifacts/patch_coverage_inputs"
 
-DEFAULT_INPUT_DIR="/work/riku-ka/vuljit/datasets/derived_artifacts/patch_coverage_inputs"
-
-export VULJIT_CLONED_REPOS_DIR='/work/riku-ka/vuljit/datasets/raw/cloned_c_cpp_projects'
+export VULJIT_CLONED_REPOS_DIR="${vuljit_dir}/datasets/raw/cloned_c_cpp_projects"
 
 input_dir=""
 shell_script=""

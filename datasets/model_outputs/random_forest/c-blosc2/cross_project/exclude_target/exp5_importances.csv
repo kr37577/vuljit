@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.18066569591206755,c-blosc2
+project_total_branch_percent,0.05910389864284236,c-blosc2
+project_total_branch_percent_delta,0.0637757496044695,c-blosc2
+project_total_function_percent,0.0950353125230538,c-blosc2
+project_total_function_percent_delta,0.06814984413224695,c-blosc2
+project_total_instantiation_percent,0.10537110511706471,c-blosc2
+project_total_instantiation_percent_delta,0.07285170554925607,c-blosc2
+project_total_line_percent,0.08907573177188123,c-blosc2
+project_total_line_percent_delta,0.083134330065215,c-blosc2
+project_total_region_percent,0.09835856743706474,c-blosc2
+project_total_region_percent_delta,0.08447805924483812,c-blosc2

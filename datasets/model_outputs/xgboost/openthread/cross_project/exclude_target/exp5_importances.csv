@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.17874655,openthread
+project_total_branch_percent,0.07344461,openthread
+project_total_branch_percent_delta,0.07581563,openthread
+project_total_function_percent,0.08561248,openthread
+project_total_function_percent_delta,0.07272312,openthread
+project_total_instantiation_percent,0.091393165,openthread
+project_total_instantiation_percent_delta,0.080460556,openthread
+project_total_line_percent,0.0794555,openthread
+project_total_line_percent_delta,0.09002156,openthread
+project_total_region_percent,0.08126305,openthread
+project_total_region_percent_delta,0.091063745,openthread

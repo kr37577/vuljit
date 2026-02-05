@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.07503447,ghostscript
+directories_changed,0.09007963,ghostscript
+entropy,0.06410969,ghostscript
+exp,0.063271776,ghostscript
+files_changed,0.07338514,ghostscript
+is_bug_fix,0.06145353,ghostscript
+lines_added,0.06525623,ghostscript
+lines_deleted,0.0625454,ghostscript
+ndev,0.08088686,ghostscript
+nuc,0.06627644,ghostscript
+rexp,0.077872716,ghostscript
+sexp,0.06682182,ghostscript
+subsystems_changed,0.07706489,ghostscript
+total_prev_loc,0.07594143,ghostscript

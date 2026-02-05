@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.07030598,poppler
+directories_changed,0.096960165,poppler
+entropy,0.06040219,poppler
+exp,0.065973,poppler
+files_changed,0.07325802,poppler
+is_bug_fix,0.05934244,poppler
+lines_added,0.061581817,poppler
+lines_deleted,0.06343968,poppler
+ndev,0.07520482,poppler
+nuc,0.065670565,poppler
+rexp,0.07430954,poppler
+sexp,0.06809333,poppler
+subsystems_changed,0.084729165,poppler
+total_prev_loc,0.08072932,poppler

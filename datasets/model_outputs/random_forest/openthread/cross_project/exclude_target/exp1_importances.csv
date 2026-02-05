@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.08608265640077213,openthread
+directories_changed,0.05072421767716332,openthread
+entropy,0.057586428724032836,openthread
+exp,0.08562506758079093,openthread
+files_changed,0.0548798073768451,openthread
+is_bug_fix,0.05071344029611532,openthread
+lines_added,0.07322383420896245,openthread
+lines_deleted,0.06838683470937927,openthread
+ndev,0.09301619182558392,openthread
+nuc,0.05982527790973166,openthread
+rexp,0.09065463609649631,openthread
+sexp,0.08263173380663064,openthread
+subsystems_changed,0.05104487527987519,openthread
+total_prev_loc,0.09560499810762096,openthread

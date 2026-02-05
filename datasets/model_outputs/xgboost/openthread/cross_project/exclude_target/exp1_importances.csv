@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.070754744,openthread
+directories_changed,0.08226807,openthread
+entropy,0.06292936,openthread
+exp,0.06913278,openthread
+files_changed,0.07307776,openthread
+is_bug_fix,0.05977414,openthread
+lines_added,0.06130244,openthread
+lines_deleted,0.062157545,openthread
+ndev,0.07594955,openthread
+nuc,0.06728234,openthread
+rexp,0.072597355,openthread
+sexp,0.06871673,openthread
+subsystems_changed,0.088114396,openthread
+total_prev_loc,0.08594282,openthread

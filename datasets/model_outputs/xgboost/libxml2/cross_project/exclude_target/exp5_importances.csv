@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.17249016,libxml2
+project_total_branch_percent,0.07626606,libxml2
+project_total_branch_percent_delta,0.07828739,libxml2
+project_total_function_percent,0.08090273,libxml2
+project_total_function_percent_delta,0.07609877,libxml2
+project_total_instantiation_percent,0.08223944,libxml2
+project_total_instantiation_percent_delta,0.08285494,libxml2
+project_total_line_percent,0.08058695,libxml2
+project_total_line_percent_delta,0.09226251,libxml2
+project_total_region_percent,0.083232395,libxml2
+project_total_region_percent_delta,0.09477865,libxml2

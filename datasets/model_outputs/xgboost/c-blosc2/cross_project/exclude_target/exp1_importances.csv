@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.070437655,c-blosc2
+directories_changed,0.090963036,c-blosc2
+entropy,0.06338202,c-blosc2
+exp,0.069294006,c-blosc2
+files_changed,0.07069724,c-blosc2
+is_bug_fix,0.06037983,c-blosc2
+lines_added,0.06304227,c-blosc2
+lines_deleted,0.06313033,c-blosc2
+ndev,0.07314239,c-blosc2
+nuc,0.066707574,c-blosc2
+rexp,0.07382108,c-blosc2
+sexp,0.06817646,c-blosc2
+subsystems_changed,0.086275235,c-blosc2
+total_prev_loc,0.08055088,c-blosc2

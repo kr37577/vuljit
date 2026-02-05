@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.08070849600795377,wireshark
+directories_changed,0.05180421949282129,wireshark
+entropy,0.05704974861479232,wireshark
+exp,0.08675195741451532,wireshark
+files_changed,0.055379301079387634,wireshark
+is_bug_fix,0.0474684303300684,wireshark
+lines_added,0.07418267491124533,wireshark
+lines_deleted,0.06987322077636654,wireshark
+ndev,0.08894063098926425,wireshark
+nuc,0.060979677395749644,wireshark
+rexp,0.09391621292416752,wireshark
+sexp,0.08197630532584686,wireshark
+subsystems_changed,0.052653633393381076,wireshark
+total_prev_loc,0.09831549134444002,wireshark

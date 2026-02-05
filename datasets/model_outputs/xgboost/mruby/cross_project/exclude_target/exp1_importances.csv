@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.0702623,mruby
+directories_changed,0.082205676,mruby
+entropy,0.06320886,mruby
+exp,0.06898201,mruby
+files_changed,0.07254673,mruby
+is_bug_fix,0.058372837,mruby
+lines_added,0.062965915,mruby
+lines_deleted,0.063795835,mruby
+ndev,0.07500205,mruby
+nuc,0.06597321,mruby
+rexp,0.07365021,mruby
+sexp,0.070224114,mruby
+subsystems_changed,0.091752455,mruby
+total_prev_loc,0.08105779,mruby

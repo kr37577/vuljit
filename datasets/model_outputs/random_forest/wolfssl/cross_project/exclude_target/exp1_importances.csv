@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.09343394305879911,wolfssl
+directories_changed,0.050316776604337095,wolfssl
+entropy,0.058924011187183024,wolfssl
+exp,0.08357908836772614,wolfssl
+files_changed,0.05448300030682982,wolfssl
+is_bug_fix,0.04849462271523331,wolfssl
+lines_added,0.07425049694612361,wolfssl
+lines_deleted,0.07182531076033433,wolfssl
+ndev,0.08978813897168886,wolfssl
+nuc,0.06010202100026323,wolfssl
+rexp,0.09063063786119926,wolfssl
+sexp,0.08046458499343115,wolfssl
+subsystems_changed,0.05230890112737399,wolfssl
+total_prev_loc,0.0913984660994771,wolfssl

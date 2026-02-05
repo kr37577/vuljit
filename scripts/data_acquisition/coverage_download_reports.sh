@@ -14,8 +14,8 @@
 PYTHON_EXEC="${PYTHON_EXEC:-python3}"
 
 # Resolve repo root
-script_dir="/work/riku-ka/vuljit/scripts"
-vuljit_dir="/work/riku-ka/vuljit"
+script_dir=""
+vuljit_dir=""
 
 PYTHON_SCRIPT_PATH_1="${vuljit_dir}/scripts/data_acquisition/coverage_download_reports.py"
 

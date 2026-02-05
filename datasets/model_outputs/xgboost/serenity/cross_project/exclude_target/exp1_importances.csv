@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.06943058,serenity
+directories_changed,0.09032335,serenity
+entropy,0.060986515,serenity
+exp,0.06656863,serenity
+files_changed,0.07283306,serenity
+is_bug_fix,0.05961982,serenity
+lines_added,0.06187203,serenity
+lines_deleted,0.062383093,serenity
+ndev,0.07536381,serenity
+nuc,0.064910784,serenity
+rexp,0.06920971,serenity
+sexp,0.06732156,serenity
+subsystems_changed,0.09616595,serenity
+total_prev_loc,0.0830111,serenity

@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.1803113,icu
+project_total_branch_percent,0.07604841,icu
+project_total_branch_percent_delta,0.076547764,icu
+project_total_function_percent,0.08012251,icu
+project_total_function_percent_delta,0.07657061,icu
+project_total_instantiation_percent,0.08441878,icu
+project_total_instantiation_percent_delta,0.07930742,icu
+project_total_line_percent,0.07933297,icu
+project_total_line_percent_delta,0.08863308,icu
+project_total_region_percent,0.08631793,icu
+project_total_region_percent_delta,0.09238921,icu

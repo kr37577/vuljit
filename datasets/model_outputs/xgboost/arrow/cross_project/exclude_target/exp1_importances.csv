@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.072853364,arrow
+directories_changed,0.07923365,arrow
+entropy,0.06264963,arrow
+exp,0.067411184,arrow
+files_changed,0.072489835,arrow
+is_bug_fix,0.062132172,arrow
+lines_added,0.068990834,arrow
+lines_deleted,0.06435641,arrow
+ndev,0.07925722,arrow
+nuc,0.068634726,arrow
+rexp,0.070939586,arrow
+sexp,0.068943955,arrow
+subsystems_changed,0.08140091,arrow
+total_prev_loc,0.08070653,arrow

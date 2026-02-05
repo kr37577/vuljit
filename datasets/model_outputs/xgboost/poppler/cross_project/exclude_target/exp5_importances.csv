@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.1744605,poppler
+project_total_branch_percent,0.07611697,poppler
+project_total_branch_percent_delta,0.07337621,poppler
+project_total_function_percent,0.08032536,poppler
+project_total_function_percent_delta,0.073179886,poppler
+project_total_instantiation_percent,0.083613776,poppler
+project_total_instantiation_percent_delta,0.08750567,poppler
+project_total_line_percent,0.079384565,poppler
+project_total_line_percent_delta,0.09103092,poppler
+project_total_region_percent,0.08648561,poppler
+project_total_region_percent_delta,0.09452053,poppler

@@ -16,8 +16,10 @@ export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 
+vuljit_dir=""
+
 PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
-PYTHON_PATH="/work/riku-ka/vuljit/scripts/metric_extraction/patch_coverage_pipeline/run_culculate_patch_coverage_pipeline.py"
+PYTHON_PATH="${vuljit_dir}/scripts/metric_extraction/patch_coverage_pipeline/run_culculate_patch_coverage_pipeline.py"
 
 # 引数を受け取る
 

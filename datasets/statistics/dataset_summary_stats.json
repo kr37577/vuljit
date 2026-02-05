@@ -1,0 +1,185 @@
+{
+  "c_cpp_issues": 3512,
+  "c_cpp_percent": 91.88906331763475,
+  "c_cpp_repos": 268,
+  "cloned_issues": 3439,
+  "cloned_repos": 255,
+  "coverage_end": "2025-06-01",
+  "coverage_projects": 92,
+  "coverage_reports": 165954,
+  "coverage_start": "2018-08-22",
+  "final_issues": 2886,
+  "min10_issues": 2903,
+  "min10_packages": 92,
+  "min10_repos": 92,
+  "prediction_coverage_projects": 15,
+  "prediction_coverage_reports": 30312,
+  "prediction_coverage_reports_per_project": {
+    "arrow": 1872,
+    "c-blosc2": 1724,
+    "ghostscript": 1710,
+    "harfbuzz": 2402,
+    "icu": 2393,
+    "libjxl": 1296,
+    "libxml2": 2349,
+    "mruby": 2093,
+    "ndpi": 1933,
+    "openthread": 2375,
+    "php": 2196,
+    "poppler": 2177,
+    "serenity": 1443,
+    "wireshark": 2286,
+    "wolfssl": 2063
+  },
+  "prediction_coverage_reports_total_per_project": 30312,
+  "prediction_days_per_project": [
+    {
+      "days_with_vcc": 11,
+      "days_without_vcc": 1494,
+      "project": "arrow",
+      "rq3_target_vulnerabilities": 54,
+      "total_days": 1505
+    },
+    {
+      "days_with_vcc": 10,
+      "days_without_vcc": 172,
+      "project": "c-blosc2",
+      "rq3_target_vulnerabilities": 74,
+      "total_days": 182
+    },
+    {
+      "days_with_vcc": 48,
+      "days_without_vcc": 652,
+      "project": "ghostscript",
+      "rq3_target_vulnerabilities": 193,
+      "total_days": 700
+    },
+    {
+      "days_with_vcc": 51,
+      "days_without_vcc": 1008,
+      "project": "harfbuzz",
+      "rq3_target_vulnerabilities": 109,
+      "total_days": 1059
+    },
+    {
+      "days_with_vcc": 10,
+      "days_without_vcc": 640,
+      "project": "icu",
+      "rq3_target_vulnerabilities": 21,
+      "total_days": 650
+    },
+    {
+      "days_with_vcc": 10,
+      "days_without_vcc": 505,
+      "project": "libjxl",
+      "rq3_target_vulnerabilities": 25,
+      "total_days": 515
+    },
+    {
+      "days_with_vcc": 19,
+      "days_without_vcc": 245,
+      "project": "libxml2",
+      "rq3_target_vulnerabilities": 54,
+      "total_days": 264
+    },
+    {
+      "days_with_vcc": 32,
+      "days_without_vcc": 1293,
+      "project": "mruby",
+      "rq3_target_vulnerabilities": 76,
+      "total_days": 1325
+    },
+    {
+      "days_with_vcc": 44,
+      "days_without_vcc": 634,
+      "project": "ndpi",
+      "rq3_target_vulnerabilities": 131,
+      "total_days": 678
+    },
+    {
+      "days_with_vcc": 17,
+      "days_without_vcc": 1101,
+      "project": "openthread",
+      "rq3_target_vulnerabilities": 52,
+      "total_days": 1118
+    },
+    {
+      "days_with_vcc": 23,
+      "days_without_vcc": 1884,
+      "project": "php",
+      "rq3_target_vulnerabilities": 51,
+      "total_days": 1907
+    },
+    {
+      "days_with_vcc": 11,
+      "days_without_vcc": 416,
+      "project": "poppler",
+      "rq3_target_vulnerabilities": 25,
+      "total_days": 427
+    },
+    {
+      "days_with_vcc": 26,
+      "days_without_vcc": 1293,
+      "project": "serenity",
+      "rq3_target_vulnerabilities": 42,
+      "total_days": 1319
+    },
+    {
+      "days_with_vcc": 25,
+      "days_without_vcc": 2136,
+      "project": "wireshark",
+      "rq3_target_vulnerabilities": 37,
+      "total_days": 2161
+    },
+    {
+      "days_with_vcc": 10,
+      "days_without_vcc": 1390,
+      "project": "wolfssl",
+      "rq3_target_vulnerabilities": 24,
+      "total_days": 1400
+    }
+  ],
+  "prediction_days_with_vcc": 347,
+  "prediction_days_without_vcc": 14863,
+  "prediction_projects": 15,
+  "prediction_srcmap_projects": 15,
+  "prediction_srcmap_reports": 29879,
+  "prediction_srcmap_reports_per_project": {
+    "arrow": 1868,
+    "c-blosc2": 1711,
+    "ghostscript": 1699,
+    "harfbuzz": 2349,
+    "icu": 2340,
+    "libjxl": 1286,
+    "libxml2": 2294,
+    "mruby": 2085,
+    "ndpi": 1926,
+    "openthread": 2322,
+    "php": 2193,
+    "poppler": 2127,
+    "serenity": 1438,
+    "wireshark": 2239,
+    "wolfssl": 2002
+  },
+  "prediction_srcmap_reports_total_per_project": 29879,
+  "prediction_total_days": 15210,
+  "rq3_target_vulnerabilities": 968,
+  "rq3_target_vulnerabilities_per_project": {
+    "arrow": 54,
+    "c-blosc2": 74,
+    "ghostscript": 193,
+    "harfbuzz": 109,
+    "icu": 21,
+    "libjxl": 25,
+    "libxml2": 54,
+    "mruby": 76,
+    "ndpi": 131,
+    "openthread": 52,
+    "php": 51,
+    "poppler": 25,
+    "serenity": 42,
+    "wireshark": 37,
+    "wolfssl": 24
+  },
+  "total_issues": 3822
+}

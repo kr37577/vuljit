@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.08432413732027347,libjxl
+directories_changed,0.04955423731769321,libjxl
+entropy,0.05886537941912518,libjxl
+exp,0.08498281653967134,libjxl
+files_changed,0.05448762884838062,libjxl
+is_bug_fix,0.05049001967257269,libjxl
+lines_added,0.0741318957652095,libjxl
+lines_deleted,0.07027463008313153,libjxl
+ndev,0.09053659326953452,libjxl
+nuc,0.06090264383609894,libjxl
+rexp,0.09401859657638015,libjxl
+sexp,0.08350415532924485,libjxl
+subsystems_changed,0.0508480323431141,libjxl
+total_prev_loc,0.0930792336795699,libjxl

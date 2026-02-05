@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.0706481,harfbuzz
+directories_changed,0.07762356,harfbuzz
+entropy,0.064531796,harfbuzz
+exp,0.07013546,harfbuzz
+files_changed,0.0706518,harfbuzz
+is_bug_fix,0.06390703,harfbuzz
+lines_added,0.063961826,harfbuzz
+lines_deleted,0.066612676,harfbuzz
+ndev,0.07528181,harfbuzz
+nuc,0.06811856,harfbuzz
+rexp,0.0738225,harfbuzz
+sexp,0.070839696,harfbuzz
+subsystems_changed,0.082047306,harfbuzz
+total_prev_loc,0.08181789,harfbuzz

@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.08529807422682263,c-blosc2
+directories_changed,0.051672308515011686,c-blosc2
+entropy,0.05961266913952824,c-blosc2
+exp,0.08592193840521317,c-blosc2
+files_changed,0.055447733636310406,c-blosc2
+is_bug_fix,0.050654095156492024,c-blosc2
+lines_added,0.07526058323288005,c-blosc2
+lines_deleted,0.0705623713076959,c-blosc2
+ndev,0.08853007950300723,c-blosc2
+nuc,0.0608965171175081,c-blosc2
+rexp,0.09164789366386059,c-blosc2
+sexp,0.08192485023937764,c-blosc2
+subsystems_changed,0.051065220193529555,c-blosc2
+total_prev_loc,0.09150566566276279,c-blosc2

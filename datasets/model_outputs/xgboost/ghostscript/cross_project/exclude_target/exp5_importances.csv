@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.17150593,ghostscript
+project_total_branch_percent,0.08143297,ghostscript
+project_total_branch_percent_delta,0.07943424,ghostscript
+project_total_function_percent,0.07747915,ghostscript
+project_total_function_percent_delta,0.076823466,ghostscript
+project_total_instantiation_percent,0.0869421,ghostscript
+project_total_instantiation_percent_delta,0.08404408,ghostscript
+project_total_line_percent,0.07844723,ghostscript
+project_total_line_percent_delta,0.0863846,ghostscript
+project_total_region_percent,0.090396754,ghostscript
+project_total_region_percent_delta,0.08710948,ghostscript

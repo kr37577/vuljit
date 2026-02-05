@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.06886326,libxml2
+directories_changed,0.090977244,libxml2
+entropy,0.060875785,libxml2
+exp,0.0669408,libxml2
+files_changed,0.074178554,libxml2
+is_bug_fix,0.06058771,libxml2
+lines_added,0.06444776,libxml2
+lines_deleted,0.062578045,libxml2
+ndev,0.075230986,libxml2
+nuc,0.06821572,libxml2
+rexp,0.06885605,libxml2
+sexp,0.07427231,libxml2
+subsystems_changed,0.086056046,libxml2
+total_prev_loc,0.07791972,libxml2

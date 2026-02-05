@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.16821646282844033,php
+project_total_branch_percent,0.05980177385482436,php
+project_total_branch_percent_delta,0.06580902884291817,php
+project_total_function_percent,0.10571068796494,php
+project_total_function_percent_delta,0.06742126213407106,php
+project_total_instantiation_percent,0.0987177846246909,php
+project_total_instantiation_percent_delta,0.07018225826092545,php
+project_total_line_percent,0.0916285060329294,php
+project_total_line_percent_delta,0.08676387983206321,php
+project_total_region_percent,0.0970667476097022,php
+project_total_region_percent_delta,0.08868160801449496,php

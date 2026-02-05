@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.17323878,harfbuzz
+project_total_branch_percent,0.07167778,harfbuzz
+project_total_branch_percent_delta,0.07388605,harfbuzz
+project_total_function_percent,0.08182465,harfbuzz
+project_total_function_percent_delta,0.079441674,harfbuzz
+project_total_instantiation_percent,0.08666984,harfbuzz
+project_total_instantiation_percent_delta,0.085287854,harfbuzz
+project_total_line_percent,0.08226723,harfbuzz
+project_total_line_percent_delta,0.086215265,harfbuzz
+project_total_region_percent,0.07933859,harfbuzz
+project_total_region_percent_delta,0.10015228,harfbuzz

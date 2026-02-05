@@ -1,0 +1,5 @@
+strategy,projects,total_scheduled_builds,median_scheduled_builds,mean_scheduled_builds,median_estimated_detection_days,mean_estimated_detection_days,median_estimated_detection_builds,mean_estimated_detection_builds,total_estimated_builds_saved
+strategy1_median,15,35925.0,1260.0,2395.0,0.0,0.0,0.0,0.0,138.0
+strategy2_random,15,188985.0,7075.0,12599.0,0.0,0.0,0.0,0.0,138.0
+strategy3_line_proportional,15,38334.0,1348.0,2555.6,0.0,0.0,0.0,0.0,138.0
+strategy4_regression,15,18861.0,598.0,1257.4,0.0,0.0,0.0,0.0,138.0

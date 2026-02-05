@@ -212,7 +212,7 @@ def visualize_per_model_importance(
         exp_label = EXPERIMENT_LABELS.get(exp_num)
         exp_suffix = f" ({exp_label})" if exp_label else ""
         plt.title(
-            f'Feature Importance ({model_name})\nfor Exp {exp_num}{exp_suffix} - Top {k}',
+            f'Feature Importance ({model_name})\nfor fs{exp_num}{exp_suffix} - Top {k}',
             fontsize=TITLE_FONT_SIZE,
             weight='bold',
         )

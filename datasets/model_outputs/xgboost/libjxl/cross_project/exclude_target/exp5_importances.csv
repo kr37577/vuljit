@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.17046528,libjxl
+project_total_branch_percent,0.07399602,libjxl
+project_total_branch_percent_delta,0.07819038,libjxl
+project_total_function_percent,0.08203324,libjxl
+project_total_function_percent_delta,0.07458023,libjxl
+project_total_instantiation_percent,0.087909184,libjxl
+project_total_instantiation_percent_delta,0.08513748,libjxl
+project_total_line_percent,0.07900747,libjxl
+project_total_line_percent_delta,0.08900012,libjxl
+project_total_region_percent,0.085111305,libjxl
+project_total_region_percent_delta,0.09456927,libjxl

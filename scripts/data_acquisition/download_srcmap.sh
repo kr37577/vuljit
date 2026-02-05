@@ -9,15 +9,14 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=250G
 #SBATCH --cpus-per-task=52
-#SBATCH --mail-user=kato.riku.ks5@naist.ac.jp
 #SBATCH --mail-type=END,FAIL 
 
 # --- Python環境の準備 ---
 PYTHON_EXEC="${PYTHON_EXEC:-python3}"
 
 # Resolve repo root
-script_dir="/work/riku-ka/vuljit/scripts"
-vuljit_dir="/work/riku-ka/vuljit"
+script_dir=""
+vuljit_dir=""
 
 # Defaults (can be overridden by args or ENV)
 DEFAULT_VUL_CSV="${VULJIT_VUL_CSV:-${vuljit_dir}/datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv}"

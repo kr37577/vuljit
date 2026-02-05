@@ -14,7 +14,10 @@ export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
-PYTHON_SCRIPT_PATH_1="/work/riku-ka/vuljit/scripts/metric_extraction/build_commit_metrics_pipeline.py"
+
+vuljit_dir=""
+
+PYTHON_SCRIPT_PATH_1="${vuljit_dir}/scripts/metric_extraction/build_commit_metrics_pipeline.py"
 # ログ用、エラー用ディレクトリ作成
 mkdir -p errors
 mkdir -p logs
@@ -105,11 +108,11 @@ echo "Running commit metrics pipeline for project '${PROJECT_NAME}' (repo: ${REP
 "${PYTHON_EXEC}" "${PYTHON_SCRIPT_PATH_1}" \
   --project "${PROJECT_NAME}" \
   --repo "${REPO_PATH}" \
-  --vuln-csv "/work/riku-ka/vuljit/datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv" \
+  --vuln-csv "${vuljit_dir}/datasets/derived_artifacts/vulnerability_reports/oss_fuzz_vulnerabilities.csv" \
   --workers 52 \
   --since 20180101 \
   --until 20251001 \
-  --metrics-dir "/work/riku-ka/vuljit/datasets/derived_artifacts/commit_metrics/" \
+  --metrics-dir "${vuljit_dir}/datasets/derived_artifacts/commit_metrics/" \
   "${EXTRA_ARGS[@]}"
 
 echo "====== Task Completed ======"

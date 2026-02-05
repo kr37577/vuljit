@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.17006078,ndpi
+project_total_branch_percent,0.075609244,ndpi
+project_total_branch_percent_delta,0.07713745,ndpi
+project_total_function_percent,0.08323588,ndpi
+project_total_function_percent_delta,0.07986323,ndpi
+project_total_instantiation_percent,0.080389775,ndpi
+project_total_instantiation_percent_delta,0.08267077,ndpi
+project_total_line_percent,0.0799037,ndpi
+project_total_line_percent_delta,0.08867203,ndpi
+project_total_region_percent,0.08902163,ndpi
+project_total_region_percent_delta,0.093435496,ndpi

@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.07157626,php
+directories_changed,0.08696199,php
+entropy,0.0589782,php
+exp,0.0669438,php
+files_changed,0.07015669,php
+is_bug_fix,0.05714663,php
+lines_added,0.063174725,php
+lines_deleted,0.06348506,php
+ndev,0.07233606,php
+nuc,0.063500434,php
+rexp,0.07803009,php
+sexp,0.06669168,php
+subsystems_changed,0.096204065,php
+total_prev_loc,0.08481429,php

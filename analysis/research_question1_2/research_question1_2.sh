@@ -18,7 +18,7 @@ export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
-script_dir="/work/riku-ka/vuljit/analysis/research_question1_2"
+script_dir=""
 PYTHON_SCRIPT_PATH_1="${script_dir}/analyze_comparison.py"
 PYTHON_SCRIPT_PATH_2="${script_dir}/analyze_trends_comparison.py"
 

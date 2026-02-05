@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.17475727,serenity
+project_total_branch_percent,0.07688501,serenity
+project_total_branch_percent_delta,0.0740969,serenity
+project_total_function_percent,0.08267723,serenity
+project_total_function_percent_delta,0.073316485,serenity
+project_total_instantiation_percent,0.08132117,serenity
+project_total_instantiation_percent_delta,0.08440508,serenity
+project_total_line_percent,0.07774462,serenity
+project_total_line_percent_delta,0.096811384,serenity
+project_total_region_percent,0.08382543,serenity
+project_total_region_percent_delta,0.09415941,serenity

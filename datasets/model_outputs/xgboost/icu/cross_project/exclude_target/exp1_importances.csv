@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.07207561,icu
+directories_changed,0.082173035,icu
+entropy,0.062275566,icu
+exp,0.06804292,icu
+files_changed,0.07151235,icu
+is_bug_fix,0.059793178,icu
+lines_added,0.06263849,icu
+lines_deleted,0.06445318,icu
+ndev,0.07483998,icu
+nuc,0.06897301,icu
+rexp,0.07456434,icu
+sexp,0.06875451,icu
+subsystems_changed,0.08732276,icu
+total_prev_loc,0.082581066,icu

@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.16233902,wolfssl
+project_total_branch_percent,0.073928446,wolfssl
+project_total_branch_percent_delta,0.075343594,wolfssl
+project_total_function_percent,0.08209383,wolfssl
+project_total_function_percent_delta,0.07516313,wolfssl
+project_total_instantiation_percent,0.09471861,wolfssl
+project_total_instantiation_percent_delta,0.08656468,wolfssl
+project_total_line_percent,0.08121086,wolfssl
+project_total_line_percent_delta,0.08961279,wolfssl
+project_total_region_percent,0.08425426,wolfssl
+project_total_region_percent_delta,0.09477077,wolfssl

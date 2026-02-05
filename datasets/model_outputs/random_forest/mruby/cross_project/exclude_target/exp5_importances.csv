@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.1918555891708661,mruby
+project_total_branch_percent,0.05744966205694449,mruby
+project_total_branch_percent_delta,0.06379233109212722,mruby
+project_total_function_percent,0.09146869534516608,mruby
+project_total_function_percent_delta,0.0669014703889564,mruby
+project_total_instantiation_percent,0.09708035574482216,mruby
+project_total_instantiation_percent_delta,0.07369610716247799,mruby
+project_total_line_percent,0.08773583233638434,mruby
+project_total_line_percent_delta,0.0852974429277266,mruby
+project_total_region_percent,0.09580101419223809,mruby
+project_total_region_percent_delta,0.08892149958229054,mruby

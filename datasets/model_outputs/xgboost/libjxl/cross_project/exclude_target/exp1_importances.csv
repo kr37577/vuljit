@@ -1,0 +1,15 @@
+feature,importance,project
+age,0.0699661,libjxl
+directories_changed,0.08184535,libjxl
+entropy,0.064590864,libjxl
+exp,0.06836536,libjxl
+files_changed,0.07106132,libjxl
+is_bug_fix,0.060039546,libjxl
+lines_added,0.06277155,libjxl
+lines_deleted,0.06337765,libjxl
+ndev,0.074932665,libjxl
+nuc,0.06709405,libjxl
+rexp,0.07563881,libjxl
+sexp,0.07049201,libjxl
+subsystems_changed,0.085919276,libjxl
+total_prev_loc,0.08390546,libjxl

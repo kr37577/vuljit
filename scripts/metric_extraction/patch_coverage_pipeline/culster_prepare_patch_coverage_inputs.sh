@@ -8,7 +8,6 @@
 #SBATCH --ntasks=1
 #SBATCH --mem=250G
 #SBATCH --cpus-per-task=52
-#SBATCH --mail-user=kato.riku.ks5@naist.ac.jp
 #SBATCH --mail-type=END,FAIL 
 
 # --- Python環境の準備 (pyenv を使用) ---
@@ -18,12 +17,15 @@ export PATH="$PYENV_ROOT/bin:$PATH"
 PYENV_ENV_NAME="py3"
 
 # リポジトリルート推定と既定値設定
-export DEFAULT_REPOS="/work/riku-ka/vuljit/datasets/raw/cloned_c_cpp_projects"
-export DEFAULT_COMMIT_OUT="/work/riku-ka/vuljit/datasets/derived_artifacts/patch_coverage_inputs"
-export DEFAULT_SRCMAP_ROOT="/work/riku-ka/vuljit/datasets/raw/srcmap_json"
+
+vuljit_dir=""
+
+export DEFAULT_REPOS="${vuljit_dir}/datasets/raw/cloned_c_cpp_projects"
+export DEFAULT_COMMIT_OUT="${vuljit_dir}/datasets/derived_artifacts/patch_coverage_inputs"
+export DEFAULT_SRCMAP_ROOT="${vuljit_dir}/datasets/raw/srcmap_json"
 
 PYTHON_EXEC="${PYENV_ROOT}/versions/${PYENV_ENV_NAME}/bin/python"
-PYTHON_SCRIPT_PATH="/work/riku-ka/vuljit/scripts/metric_extraction/patch_coverage_pipeline/prepare_patch_coverage_inputs.py"
+PYTHON_SCRIPT_PATH="${vuljit_dir}/scripts/metric_extraction/patch_coverage_pipeline/prepare_patch_coverage_inputs.py"
 
 echo "Patch Coverage inputsを準備..."
 "${PYTHON_EXEC}" "${PYTHON_SCRIPT_PATH}" \

@@ -1,0 +1,12 @@
+feature,importance,project
+patch_coverage_recalculated,0.19027413,wireshark
+project_total_branch_percent,0.0748489,wireshark
+project_total_branch_percent_delta,0.06972019,wireshark
+project_total_function_percent,0.072196886,wireshark
+project_total_function_percent_delta,0.08320277,wireshark
+project_total_instantiation_percent,0.08371841,wireshark
+project_total_instantiation_percent_delta,0.09223877,wireshark
+project_total_line_percent,0.07166927,wireshark
+project_total_line_percent_delta,0.090602785,wireshark
+project_total_region_percent,0.08227564,wireshark
+project_total_region_percent_delta,0.08925223,wireshark
