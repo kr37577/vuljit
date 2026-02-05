@@ -216,8 +216,11 @@ def visualize_per_model_importance(
             fontsize=TITLE_FONT_SIZE,
             weight='bold',
         )
-        plt.xlabel('Feature', fontsize=AXIS_LABEL_FONT_SIZE + 2)
-        plt.ylabel('Importance', fontsize=AXIS_LABEL_FONT_SIZE + 2)
+        plt.xlabel('Feature', fontsize=AXIS_LABEL_FONT_SIZE + 2, labelpad=12)
+        plt.ylabel('Importance', fontsize=AXIS_LABEL_FONT_SIZE + 2, labelpad=12)
+        plt.tick_params(axis='x', pad=8)
+        plt.tick_params(axis='y', pad=8)
+
         plt.xticks(rotation=45, ha='right', fontsize=SMALL_TICK_FONT_SIZE + 2)
         plt.yticks(fontsize=TICK_FONT_SIZE + 2)
         plt.ylim(bottom=0)
