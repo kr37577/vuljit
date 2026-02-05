@@ -155,8 +155,5 @@ After successful execution, results will be located in:
 ---
 
 ## License
-
-<!-- Specify the license, e.g., MIT, Apache 2.0, CC BY 4.0 for data, etc. -->
-
 This project is licensed under the [MIT License](LICENSE).
 
