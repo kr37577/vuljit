@@ -14,10 +14,11 @@ Additional Fuzzing for Continuous Fuzzing]*
 1. [Overview](#overview)
 2. [Requirements](#requirements)
 3. [Setup](#setup)
-4. [Repository Structure](#repository-structure)
-5. [Reproducing the Experiments](#reproducing-the-experiments)
-6. [Expected Results](#expected-results)
-7. [License](#license)
+4. [Docker Replication](#docker-replication)
+5. [Repository Structure](#repository-structure)
+6. [Reproducing the Experiments](#reproducing-the-experiments)
+7. [Expected Results](#expected-results)
+8. [License](#license)
 
 ---
 
@@ -145,8 +146,8 @@ docker compose run --rm replication shell
 │   ├── cross_project_prediction.sh
 │   ├── RQ1_2.sh
 │   └── RQ3.sh
-├── scripts/              # scripts
-└── analysis/             # Analysis outputs
+├── scripts/              # Scripts
+└── analysis/             # Analysis scripts
 ```
 
 ---
