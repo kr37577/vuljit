@@ -1,4 +1,4 @@
-# Replication Package
+# Replication Package for the Risk-Aware Intensive Supplemental Execution Framework
 
 This repository provides the replication package for our research paper. It contains the datasets, scripts, and instructions necessary to reproduce the experimental results reported in the paper.
 
@@ -125,6 +125,7 @@ docker compose run --rm replication shell
 - `datasets/` is expected to be mounted from host storage (default compose volume mapping uses the project directory).
 - Selenium is enabled in-container (headless Chromium). `shm_size: "2gb"` is set in compose for stability.
 - For very large runs, tune `VULJIT_WORKERS`, `VULJIT_START_DATE`, and `VULJIT_END_DATE` in `.env.docker`.
+- Data acquisition (`VULJIT_START_DATE`, `VULJIT_END_DATE`) may download a wider range of data, but daily aggregation uses a narrower default window in `scripts/modeling/aggregate_metrics_pipeline.py`: `--start-date=2018-08-22`, `--end-date=2025-06-01`.
 - `run_step RQ3` executes its child scripts via `bash`, so `chmod +x analysis/research_question3/*.sh` is normally unnecessary.
 - If your local environment still reports a permission error, use `chmod +x analysis/research_question3/run_prepare_RQ3.sh analysis/research_question3/rq3.sh` as troubleshooting.
 
