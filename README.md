@@ -80,6 +80,52 @@ We use [OSS-Fuzz](https://github.com/google/oss-fuzz). The scripts automatically
 
 ---
 
+## Docker Replication
+
+This repository includes a Docker-based replication environment with `docker-compose`.
+The container runs from `/workspace/RAISE` and is designed to execute the same pipeline as `run_all_process.sh`.
+
+### 1) Prepare environment files
+
+```bash
+cp .env.docker.example .env.docker
+```
+
+Optionally keep your existing `.env` for project variables; the container entrypoint loads both `.env` and `.env.docker` if present.
+
+### 2) Build image
+
+```bash
+docker compose build
+```
+
+### 3) Run full pipeline
+
+```bash
+docker compose run --rm replication run_all
+```
+
+### 4) Run a specific replication step
+
+```bash
+docker compose run --rm replication run_step RQ3
+docker compose run --rm replication run_step data_acquisition --no-vulcsv --no-coverage --no-srcmap
+```
+
+### 5) Open shell inside container
+
+```bash
+docker compose run --rm replication shell
+```
+
+### Notes
+
+- `datasets/` is expected to be mounted from host storage (default compose volume mapping uses the project directory).
+- Selenium is enabled in-container (headless Chromium). `shm_size: "2gb"` is set in compose for stability.
+- For very large runs, tune `VULJIT_WORKERS`, `VULJIT_START_DATE`, and `VULJIT_END_DATE` in `.env.docker`.
+
+---
+
 ## Repository Structure
 
 ```
@@ -156,4 +202,3 @@ After successful execution, results will be located in:
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
-

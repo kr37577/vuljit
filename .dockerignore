@@ -1,0 +1,16 @@
+.git
+.pytest_cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+dist/
+build/
+datasets/raw/coverage_report/
+datasets/raw/srcmap_json/
+datasets/raw/oss_fuzz_selenium_html_pages/
+datasets/raw/cloned_c_cpp_projects/
+datasets/raw/oss-fuzz/
+datasets/model_outputs/

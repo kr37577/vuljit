@@ -1,0 +1,19 @@
+services:
+  replication:
+    container_name: raise-replication
+    build:
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /workspace/RAISE
+    volumes:
+      - ./:/workspace/RAISE
+    environment:
+      PYTHONUNBUFFERED: "1"
+      SKIP_VULCSV: "${SKIP_VULCSV:-0}"
+      SKIP_COVERAGE: "${SKIP_COVERAGE:-0}"
+      SKIP_SRCDOWN: "${SKIP_SRCDOWN:-0}"
+      SKIP_SELENIUM: "${SKIP_SELENIUM:-0}"
+    shm_size: "2gb"
+    stdin_open: true
+    tty: true
+    command: ["run_all"]

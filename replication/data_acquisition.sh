@@ -10,6 +10,19 @@ run_coverage=1
 run_srcmap=1
 run_selenium=1
 
+is_truthy() {
+  case "${1:-}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Environment-based skip controls for container/batch execution.
+if is_truthy "${SKIP_VULCSV:-0}"; then run_vulcsv=0; fi
+if is_truthy "${SKIP_COVERAGE:-0}"; then run_coverage=0; fi
+if is_truthy "${SKIP_SRCDOWN:-0}"; then run_srcmap=0; fi
+if is_truthy "${SKIP_SELENIUM:-0}"; then run_selenium=0; fi
+
 usage() {
   cat <<'USAGE'
 Usage: bash replication/data_acquisition.sh [options]
