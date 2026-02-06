@@ -55,13 +55,13 @@ cd "${RQ3_DIR}" || exit 1
 if [[ ${run_prepare} -eq 1 ]]; then
   echo "---------------------------------"
   echo "[info] RQ3 data preparation"
-  "${prepare_script}"
+  bash "${prepare_script}"
 fi
 
 if [[ ${run_sim} -eq 1 ]]; then
   echo "---------------------------------"
   echo "[info] RQ3 simulations"
-  "${sim_script}"
+  bash "${sim_script}"
 fi
 
 echo "---------------------------------"

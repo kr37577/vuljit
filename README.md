@@ -109,6 +109,8 @@ docker compose run --rm replication run_all
 
 ```bash
 docker compose run --rm replication run_step RQ3
+docker compose run --rm replication run_step RQ3 --prepare-only
+docker compose run --rm replication run_step RQ3 --simulate-only
 docker compose run --rm replication run_step data_acquisition --no-vulcsv --no-coverage --no-srcmap
 ```
 
@@ -123,6 +125,8 @@ docker compose run --rm replication shell
 - `datasets/` is expected to be mounted from host storage (default compose volume mapping uses the project directory).
 - Selenium is enabled in-container (headless Chromium). `shm_size: "2gb"` is set in compose for stability.
 - For very large runs, tune `VULJIT_WORKERS`, `VULJIT_START_DATE`, and `VULJIT_END_DATE` in `.env.docker`.
+- `run_step RQ3` executes its child scripts via `bash`, so `chmod +x analysis/research_question3/*.sh` is normally unnecessary.
+- If your local environment still reports a permission error, use `chmod +x analysis/research_question3/run_prepare_RQ3.sh analysis/research_question3/rq3.sh` as troubleshooting.
 
 ---
 
