@@ -22,9 +22,14 @@ def _get_create_module():
         try:
             _CREATE_MODULE = import_module("create_project_csvs_from_srcmap")
         except ModuleNotFoundError:
-            _CREATE_MODULE = import_module(
-                "vuljit.scripts.metric_extraction.patch_coverage_pipeline.create_project_csvs_from_srcmap"
-            )
+            try:
+                _CREATE_MODULE = import_module(
+                    "scripts.metric_extraction.patch_coverage_pipeline.create_project_csvs_from_srcmap"
+                )
+            except ModuleNotFoundError:
+                _CREATE_MODULE = import_module(
+                    "vuljit.scripts.metric_extraction.patch_coverage_pipeline.create_project_csvs_from_srcmap"
+                )
     return _CREATE_MODULE
 
 

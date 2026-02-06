@@ -28,7 +28,10 @@ if __package__ in (None, ""):
     try:
         _cli_module = _import_cli_module("RQ3")
     except ModuleNotFoundError:
-        _cli_module = _import_cli_module("vuljit.analysis.research_question3")
+        try:
+            _cli_module = _import_cli_module("analysis.research_question3")
+        except ModuleNotFoundError:
+            _cli_module = _import_cli_module("vuljit.analysis.research_question3")
 
     main = _cli_module.main  # type: ignore[attr-defined]
 else:  # pragma: no cover

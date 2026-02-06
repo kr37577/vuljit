@@ -14,16 +14,28 @@ if __package__ in (None, ""):
     parent_dir = project_root.parent
     if str(parent_dir) not in sys.path:
         sys.path.insert(0, str(parent_dir))
-    from RQ3.core import (  # type: ignore[attr-defined]
-        build_timeline,
-        ensure_directory,
-        normalise_path,
-        parse_build_counts_csv,
-        resolve_default,
-        scan_daily_records,
-        summarise_project_timeline,
-        write_timeline_csv,
-    )
+    try:
+        from analysis.research_question3.core import (
+            build_timeline,
+            ensure_directory,
+            normalise_path,
+            parse_build_counts_csv,
+            resolve_default,
+            scan_daily_records,
+            summarise_project_timeline,
+            write_timeline_csv,
+        )
+    except ImportError:
+        from RQ3.core import (  # type: ignore[attr-defined]
+            build_timeline,
+            ensure_directory,
+            normalise_path,
+            parse_build_counts_csv,
+            resolve_default,
+            scan_daily_records,
+            summarise_project_timeline,
+            write_timeline_csv,
+        )
 else:
     from ..core import (
         build_timeline,

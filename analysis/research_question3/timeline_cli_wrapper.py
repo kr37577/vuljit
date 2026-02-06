@@ -29,7 +29,10 @@ if __package__ in (None, ""):
 
     _cli_module: ModuleType
     _timeline_module: ModuleType
-    _cli_module, _timeline_module = _import_cli_modules("vuljit.analysis.research_question3")
+    try:
+        _cli_module, _timeline_module = _import_cli_modules("analysis.research_question3")
+    except ModuleNotFoundError:
+        _cli_module, _timeline_module = _import_cli_modules("vuljit.analysis.research_question3")
 
     main = _cli_module.main  # type: ignore[attr-defined]
     parse_args = _cli_module.parse_args  # type: ignore[attr-defined]
