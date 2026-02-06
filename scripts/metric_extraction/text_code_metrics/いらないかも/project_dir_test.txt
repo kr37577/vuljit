@@ -1,3 +1,0 @@
-duckdb
-php-src
-ruby
